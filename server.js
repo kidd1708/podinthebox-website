@@ -1,27 +1,28 @@
 const express = require('express');
 const path = require('path');
+const dotenv = require('dotenv');
 const session = require('express-session');
-const MongoStore = require('connect-mongo');
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
 
-// Session configuration for Vercel (using MongoDB or memory store)
-// Note: For production, use a proper session store like MongoDB, Redis, or PostgreSQL
+// Session configuration
 app.use(session({
     secret: process.env.SESSION_SECRET || 'podinthebox-secret-key-2026',
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true,
     cookie: { 
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    },
-    store: process.env.MONGODB_URI ? MongoStore.create({
-        mongoUrl: process.env.MONGODB_URI
-    }) : undefined
+        maxAge: 24 * 60 * 60 * 1000
+    }
 }));
 
 // Authentication middleware
@@ -40,14 +41,20 @@ app.post('/api/admin/authenticate', (req, res) => {
     const adminPassword = process.env.ADMIN_PASSWORD;
     
     if (!adminPassword) {
-        console.error('❌ ADMIN_PASSWORD not set in environment variables');
+        console.error('❌ ADMIN_PASSWORD not set in .env file');
         return res.status(500).json({ success: false, message: 'Server configuration error' });
     }
     
     if (password === adminPassword) {
         req.session.isAdmin = true;
-        console.log('✅ Admin logged in successfully');
-        res.json({ success: true });
+        req.session.save((err) => {
+            if (err) {
+                console.error('Session save error:', err);
+                return res.status(500).json({ success: false, message: 'Session error' });
+            }
+            console.log('✅ Admin logged in successfully');
+            res.json({ success: true });
+        });
     } else {
         console.log('❌ Failed login attempt');
         res.json({ success: false, message: "My apologize, you're not the admin." });
@@ -75,16 +82,13 @@ app.get('/health', (req, res) => {
     res.json({ 
         status: 'OK', 
         timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || 'development'
+        uptime: process.uptime()
     });
 });
 
-// Serve static files from public directory
-app.use(express.static(path.join(__dirname, '../public')));
-
 // Serve the main HTML file for all other routes
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Error handling middleware
@@ -92,6 +96,31 @@ app.use((err, req, res, next) => {
     console.error('Error:', err);
     res.status(500).json({ success: false, message: 'Internal server error' });
 });
+
+// Start server for local development
+if (require.main === module) {
+    const server = app.listen(PORT, () => {
+        console.log(`✅ POD IN THE BOX server running on http://localhost:${PORT}`);
+        console.log(`🔒 Admin password is hidden in .env file`);
+        console.log(`📊 Health check: http://localhost:${PORT}/health`);
+    });
+    
+    process.on('SIGINT', () => {
+        console.log('Shutting down gracefully...');
+        server.close(() => {
+            console.log('Server closed');
+            process.exit(0);
+        });
+    });
+    
+    process.on('SIGTERM', () => {
+        console.log('Received SIGTERM, shutting down...');
+        server.close(() => {
+            console.log('Server closed');
+            process.exit(0);
+        });
+    });
+}
 
 // Export for Vercel
 module.exports = app;
