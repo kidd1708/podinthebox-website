@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>POD IN THE BOX</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #e9e6c2;
+      color: #2c3e2f;
+      line-height: 1.5;
+      scroll-behavior: smooth;
+    }
+    .container { max-width: 1280px; margin: 0 auto; padding: 0 28px; }
+
+    /* navbar */
+    .navbar {
+      background: rgba(233, 230, 194, 0.96);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+      position: sticky;
+      top: 0;
+      z-index: 150;
+      border-bottom: 1px solid #d4cfaa;
+    }
+    .nav-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      padding: 14px 28px;
+      max-width: 1360px;
+      margin: 0 auto;
+    }
+    .logo-area { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+    .logo-icon {
+      background: #6b9080;
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      color: #e9e6c2;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+    .logo-text {
+      font-weight: 800;
+      font-size: 1.6rem;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #4a6b5e, #6b9080);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+    .nav-links { display: flex; gap: 28px; align-items: center; }
+    .nav-links a {
+      text-decoration: none;
+      font-weight: 600;
+      color: #4a5b4a;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .nav-links a:hover { color: #6b9080; }
+    .admin-badge-btn {
+      background: #6b9080;
+      color: #e9e6c2;
+      padding: 8px 20px;
+      border-radius: 40px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      border: none;
+      transition: 0.2s;
+    }
+    .admin-badge-btn:hover {
+      background: #557a6a;
+      transform: translateY(-1px);
+    }
+
+    /* hero section */
+    .hero {
+      padding: 70px 0 56px;
+      text-align: center;
+      background: radial-gradient(circle at 20% 30%, rgba(107,144,128,0.08), transparent);
+    }
+    .hero h1 {
+      font-size: 3.2rem;
+      font-weight: 800;
+      background: linear-gradient(to right, #446b5c, #6b9080, #8aae9c);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      margin-bottom: 18px;
+    }
+    .hero p {
+      font-size: 1.2rem;
+      max-width: 680px;
+      margin: 0 auto 28px;
+      color: #4a5b4a;
+    }
+    .subscribe-buttons { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      background: #6b9080;
+      color: #e9e6c2;
+      border: none;
+      padding: 12px 32px;
+      font-weight: 700;
+      border-radius: 60px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      transition: 0.2s;
+    }
+    .btn-primary:hover {
+      background: #557a6a;
+      transform: translateY(-2px);
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1.5px solid #6b9080;
+      color: #6b9080;
+    }
+    .btn-outline:hover {
+      background: rgba(107,144,128,0.1);
+      transform: translateY(-2px);
+    }
+
+    .section-title {
+      font-size: 1.9rem;
+      font-weight: 800;
+      margin: 56px 0 24px 0;
+      border-left: 6px solid #6b9080;
+      padding-left: 22px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #3a5c4f;
+    }
+
+    /* episode cards */
+    .episode-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 32px;
+      margin-bottom: 48px;
+    }
+    .episode-card {
+      background: rgba(255, 250, 225, 0.9);
+      border-radius: 28px;
+      padding: 0;
+      overflow: hidden;
+      box-shadow: 0 12px 24px -14px rgba(0, 0, 0, 0.08);
+      border: 1px solid #d6cf9f;
+      transition: 0.25s;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+    }
+    .episode-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 24px 32px -16px rgba(0, 0, 0, 0.12);
+      border-color: #6b9080;
+    }
+    .episode-cover {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      background: #dcd6ae;
+    }
+    .episode-info { padding: 1.5rem; }
+    .episode-title {
+      font-weight: 800;
+      font-size: 1.35rem;
+      margin-bottom: 8px;
+      color: #2c4a3e;
+    }
+    .episode-desc {
+      color: #5a6e5a;
+      margin: 8px 0 12px;
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+    .episode-author {
+      font-size: 0.75rem;
+      color: #7b8e6e;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .listen-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #6b9080;
+      font-weight: 700;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    /* blog cards */
+    .blog-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 28px;
+      margin: 24px 0 56px;
+    }
+    .blog-card {
+      background: rgba(255, 250, 225, 0.9);
+      border-radius: 28px;
+      padding: 24px;
+      border: 1px solid #e0d9af;
+      transition: 0.2s;
+      cursor: pointer;
+    }
+    .blog-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 30px -14px rgba(0, 0, 0, 0.08);
+      border-color: #6b9080;
+    }
+    .blog-card-image {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      border-radius: 20px;
+      margin-bottom: 14px;
+      background: #dbd4a8;
+    }
+    .blog-card h3 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #2c4a3e;
+    }
+    .blog-author {
+      font-size: 0.7rem;
+      color: #7b8e6e;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .blog-date {
+      font-size: 0.75rem;
+      color: #7b8e6e;
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    footer {
+      text-align: center;
+      padding: 40px 0;
+      border-top: 1px solid #d6cf9f;
+      margin-top: 20px;
+      color: #5a705e;
+    }
+
+    /* admin modal */
+    .admin-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .admin-dashboard-container {
+      background: #e9e6c2;
+      border-radius: 40px;
+      width: 92%;
+      max-width: 1100px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 30px 50px rgba(0, 0, 0, 0.25);
+      padding: 28px 32px;
+      border: 1px solid #cbc38b;
+    }
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #cbc38b;
+      padding-bottom: 18px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+    .dashboard-header h2 {
+      font-size: 1.7rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #6b9080, #4a6b5e);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+    .close-dashboard {
+      background: #d6cf9f;
+      border: none;
+      padding: 8px 22px;
+      border-radius: 40px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #3a5c4f;
+    }
+    .admin-tabs {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 32px;
+      border-bottom: 1px solid #cbc38b;
+      padding-bottom: 12px;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 8px 20px;
+      cursor: pointer;
+      border-radius: 40px;
+      transition: 0.2s;
+      color: #4a5b4a;
+    }
+    .tab-btn.active {
+      background: #6b9080;
+      color: #e9e6c2;
+    }
+    .tab-pane { display: none; animation: fade 0.2s ease; }
+    .tab-pane.active-pane { display: block; }
+    @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    .form-card {
+      background: rgba(255, 252, 235, 0.8);
+      padding: 24px;
+      border-radius: 32px;
+      margin-bottom: 32px;
+      border: 1px solid #d6cf9f;
+    }
+    .form-group { margin-bottom: 20px; }
+    .form-group label {
+      font-weight: 700;
+      display: block;
+      margin-bottom: 8px;
+      color: #3a5c4f;
+    }
+    .form-group input, .form-group textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #cbc38b;
+      border-radius: 28px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      background: #fffef7;
+    }
+    .form-group input:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: #6b9080;
+      box-shadow: 0 0 0 2px rgba(107,144,128,0.2);
+    }
+    .upload-area { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+    .upload-btn {
+      background: #d6cf9f;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 40px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #3a5c4f;
+    }
+    .upload-btn:hover { background: #cbc38b; }
+    .image-preview-mini {
+      max-width: 100px;
+      max-height: 100px;
+      border-radius: 12px;
+      margin-top: 8px;
+      border: 2px solid #cbc38b;
+      object-fit: cover;
+    }
+
+    .rich-toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      background: #dfd9af;
+      padding: 10px 14px;
+      border-radius: 50px;
+      margin-bottom: 12px;
+    }
+    .tool-btn {
+      background: #fffef7;
+      border: 1px solid #cbc38b;
+      padding: 6px 12px;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #3a5c4f;
+    }
+    .tool-btn:hover { background: #e9e6c2; border-color: #6b9080; }
+    .rich-editor {
+      width: 100%;
+      min-height: 180px;
+      padding: 14px 18px;
+      border: 1px solid #cbc38b;
+      border-radius: 28px;
+      background: #fffef7;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+    .rich-editor:focus { outline: none; border-color: #6b9080; }
+
+    .item-list { display: flex; flex-direction: column; gap: 14px; margin-top: 20px; }
+    .list-item {
+      background: rgba(255, 252, 235, 0.8);
+      border-radius: 24px;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid #d6cf9f;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .btn-danger {
+      background: #c27e6e;
+      color: white;
+      border: none;
+      padding: 6px 16px;
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn-danger:hover { background: #ae6a5a; }
+    .btn-purple {
+      background: #6b9080;
+      color: #e9e6c2;
+      border: none;
+      padding: 10px 26px;
+      border-radius: 40px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-purple:hover { background: #557a6a; transform: translateY(-1px); }
+
+    .login-screen {
+      text-align: center;
+      padding: 20px;
+    }
+    .login-screen input {
+      width: 80%;
+      padding: 14px;
+      margin: 18px 0;
+      border-radius: 60px;
+      border: 1px solid #cbc38b;
+      background: #fffef7;
+    }
+    @media (max-width:700px) { .admin-dashboard-container { padding: 20px; } }
+
+    /* warning banner */
+    .warning-banner {
+      background: #fef3c7;
+      color: #92400e;
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-size: 12px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="navbar">
+  <div class="nav-container">
+    <div class="logo-area" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+      <div class="logo-icon"><i class="fas fa-microphone-alt"></i></div>
+      <span class="logo-text">POD IN THE BOX</span>
+    </div>
+    <div class="nav-links">
+      <a onclick="scrollToEpisodes()">Episodes</a>
+      <a onclick="scrollToBlog()">Blog</a>
+      <div class="admin-badge-btn" onclick="openAdminDashboard()"><i class="fas fa-user-shield"></i> Admin Panel</div>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="container">
+    <div class="hero">
+      <h1>New box. New stories. No limits</h1>
+      <p>Each episode, we open a new box. What's inside? Stories, conversations, and perspectives you (maybe) haven't heard before.</p>
+      <div class="subscribe-buttons">
+        <button class="btn-primary" onclick="window.open('https://open.spotify.com/user/31driympxqfybpzkbpfs4jmidpem','_blank')"><i class="fab fa-spotify"></i> Spotify</button>
+        <button class="btn-primary btn-outline" onclick="window.open('https://open.noice.id/user/38d1b86c-2232-4482-921b-af809c95530c','_blank')"><i class="fas fa-headphones"></i> Noice</button>
+        <button class="btn-primary btn-outline" onclick="window.open('https://www.tiktok.com/@podinthebox_official','_blank')"><i class="fa-brands fa-tiktok"></i> TikTok</button>
+      </div>
+    </div>
+    <div id="episodes-section"><div class="section-title"><i class="fas fa-headphones"></i> Latest episodes</div><div id="episodesContainer" class="episode-grid"></div></div>
+    <div id="blog-section"><div class="section-title"><i class="fas fa-blog"></i> From the blog</div><div id="visitorBlogContainer" class="blog-grid"></div></div>
+  </div>
+</main>
+<footer><div class="container"><p>© 2026 POD IN THE BOX — made with love and machines <i class="fas fa-podcast"></i> | Pod in the Box</p></div></footer>
+
+<!-- ADMIN DASHBOARD -->
+<div id="adminModal" class="admin-overlay">
+  <div class="admin-dashboard-container">
+    <div id="adminLoginArea" class="login-screen">
+      <i class="fas fa-lock" style="font-size:48px;color:#6b9080;"></i><h2>Admin Access</h2>
+      <input type="password" id="adminPasswordInput" placeholder="Password">
+      <button class="btn-purple" onclick="authenticateAdmin()">Login</button>
+      <button onclick="closeAdminDashboard()" style="margin-left:12px;background:#d6cf9f;border:none;padding:10px 20px;border-radius:40px;">Cancel</button>
+    </div>
+    <div id="adminDashboardArea" style="display:none;">
+      <div class="dashboard-header"><h2><i class="fas fa-crown"></i> POD IN THE BOX CMS</h2><button class="close-dashboard" onclick="logoutAndClose()"><i class="fas fa-sign-out-alt"></i> Logout</button></div>
+      
+      <div class="warning-banner">
+        <i class="fas fa-info-circle"></i> Tip: For best results, use small images (under 500KB) or use image URLs from the web!
+      </div>
+      
+      <div class="admin-tabs"><button class="tab-btn active" data-tab="episodesTab">🎙️ Episodes</button><button class="tab-btn" data-tab="blogTab">📝 Blog Manager</button></div>
+      
+      <!-- EPISODES TAB with Author field -->
+      <div id="episodesTab" class="tab-pane active-pane">
+        <div class="form-card">
+          <h3>➕ Add New Episode</h3>
+          <div class="form-group"><label>Cover Image</label>
+            <div class="upload-area">
+              <input type="file" id="episodeImageUpload" accept="image/*" style="display:none;">
+              <button type="button" class="upload-btn" onclick="document.getElementById('episodeImageUpload').click()"><i class="fas fa-upload"></i> Upload Image</button>
+              <button type="button" class="upload-btn" onclick="clearEpisodeImagePreview()"><i class="fas fa-times"></i> Clear</button>
+            </div>
+            <input type="text" id="newEpCover" placeholder="Or enter image URL (recommended for large images)" style="margin-top:10px;">
+            <div id="episodeImagePreviewArea"></div>
+          </div>
+          <div class="form-group"><label>Episode Title</label><input type="text" id="newEpTitle" placeholder="S2E5: The Future of Creativity"></div>
+          <div class="form-group"><label>Author/Host Name</label><input type="text" id="newEpAuthor" placeholder="e.g., John Doe, Sarah Smith"></div>
+          <div class="form-group"><label>Description</label><textarea id="newEpDesc" rows="2" placeholder="Short description..."></textarea></div>
+          <div class="form-group"><label>Listen Link</label><input type="url" id="newEpLink" placeholder="https://open.spotify.com/... or https://www.noice.com/..."></div>
+          <button class="btn-purple" onclick="addFullEpisode()"><i class="fas fa-plus-circle"></i> Publish Episode</button>
+        </div>
+        <h3>📻 Existing Episodes</h3>
+        <div id="adminEpisodesList" class="item-list"></div>
+      </div>
+      
+      <!-- BLOG TAB with Author field -->
+      <div id="blogTab" class="tab-pane">
+        <div class="form-card">
+          <h3>✍️ Create Blog Post</h3>
+          <div class="form-group"><label>Post Title</label><input type="text" id="newBlogTitle" placeholder="Catchy headline"></div>
+          <div class="form-group"><label>Author Name</label><input type="text" id="newBlogAuthor" placeholder="e.g., John Doe"></div>
+          <div class="form-group"><label>Cover Image</label>
+            <div class="upload-area">
+              <input type="file" id="blogImageUpload" accept="image/*" style="display:none;">
+              <button type="button" class="upload-btn" onclick="document.getElementById('blogImageUpload').click()"><i class="fas fa-upload"></i> Upload Cover</button>
+              <button type="button" class="upload-btn" onclick="clearBlogImagePreview()"><i class="fas fa-times"></i> Clear</button>
+            </div>
+            <input type="text" id="blogImageUrl" placeholder="Or image URL (recommended)" style="margin-top:10px;">
+            <div id="blogImagePreviewArea"></div>
+          </div>
+          <div class="form-group"><label>Rich Content</label>
+            <div class="rich-toolbar">
+              <button type="button" class="tool-btn" onclick="formatDoc('bold')"><i class="fas fa-bold"></i> B</button>
+              <button type="button" class="tool-btn" onclick="formatDoc('italic')"><i class="fas fa-italic"></i> I</button>
+              <button type="button" class="tool-btn" onclick="formatDoc('underline')"><i class="fas fa-underline"></i> U</button>
+              <button type="button" class="tool-btn" onclick="formatDoc('insertUnorderedList')"><i class="fas fa-list-ul"></i> List</button>
+              <button type="button" class="tool-btn" onclick="createLink()"><i class="fas fa-link"></i> Link</button>
+              <button type="button" class="tool-btn" onclick="insertImageFromUrl()"><i class="fas fa-image"></i> Img</button>
+              <button type="button" class="tool-btn" onclick="embedVideo()"><i class="fab fa-youtube"></i> Embed</button>
+            </div>
+            <div id="richEditor" contenteditable="true" class="rich-editor"></div>
+          </div>
+          <button class="btn-purple" onclick="publishBlogPost()"><i class="fas fa-cloud-upload-alt"></i> Publish Post</button>
+        </div>
+        <h3>📚 Manage Blog Posts</h3>
+        <div id="adminBlogList" class="item-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // --- SAMPLE DATA with AUTHOR NAMES ---
+  let episodes = [
+    { id: 1, cover: "https://picsum.photos/id/100/400/200", title: "S1E1: The Beginning", author: "Alex Rivera", description: "Welcome to POD IN THE BOX! First episode about honest conversations.", link: "https://open.spotify.com/" },
+    { id: 2, cover: "https://picsum.photos/id/101/400/200", title: "S1E2: Raw Stories", author: "Taylor Chen", description: "Real people, real stories. No filters, just truth.", link: "https://www.noice.com/" }
+  ];
+  
+  let blogPosts = [
+    { id: 101, title: "Welcome to POD IN THE BOX!", author: "Alex Rivera", imageUrl: "https://picsum.photos/id/20/400/200", content: "<p><strong>Welcome</strong> to our first blog post! We're excited to share honest conversations with you.</p>", date: new Date().toLocaleDateString() },
+    { id: 102, title: "Why Podcasting Matters", author: "Sarah Jenkins", imageUrl: "https://picsum.photos/id/26/400/200", content: "<p>Podcasting creates <em>intimacy</em> like no other medium. Here's why we love it.</p>", date: new Date().toLocaleDateString() }
+  ];
+
+  let uploadedEpisodeImageData = null;
+  let uploadedBlogImageData = null;
+
+  function saveAllData() {
+    try {
+      localStorage.setItem('podinthebox_episodes', JSON.stringify(episodes));
+      localStorage.setItem('podinthebox_blog', JSON.stringify(blogPosts));
+      return true;
+    } catch(e) {
+      if (e.name === 'QuotaExceededError') {
+        alert("⚠️ Storage limit reached! Your uploaded image is too large. Please use smaller images (under 500KB) or use image URLs instead.");
+      } else {
+        alert("Error saving: " + e.message);
+      }
+      return false;
+    }
+  }
+  
+  function loadData() {
+    const storedEp = localStorage.getItem('podinthebox_episodes');
+    if (storedEp) episodes = JSON.parse(storedEp);
+    const storedBlog = localStorage.getItem('podinthebox_blog');
+    if (storedBlog) blogPosts = JSON.parse(storedBlog);
+    renderPublicSite();
+  }
+
+  // Image upload listeners
+  document.getElementById('episodeImageUpload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      if (file.size > 500 * 1024) {
+        alert("⚠️ Image is larger than 500KB. For better results, use a smaller image or paste an image URL instead.");
+      }
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        uploadedEpisodeImageData = ev.target.result;
+        document.getElementById('episodeImagePreviewArea').innerHTML = `<img src="${uploadedEpisodeImageData}" class="image-preview-mini"><p style="font-size:12px; margin-top:5px;">✅ ready (${(file.size/1024).toFixed(1)}KB)</p>`;
+        document.getElementById('newEpCover').value = '';
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+  
+  function clearEpisodeImagePreview() { uploadedEpisodeImageData = null; document.getElementById('episodeImagePreviewArea').innerHTML = ''; document.getElementById('episodeImageUpload').value = ''; document.getElementById('newEpCover').value = ''; }
+  
+  document.getElementById('blogImageUpload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      if (file.size > 500 * 1024) {
+        alert("⚠️ Image is larger than 500KB. Consider using a smaller image or URL instead.");
+      }
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        uploadedBlogImageData = ev.target.result;
+        document.getElementById('blogImagePreviewArea').innerHTML = `<img src="${uploadedBlogImageData}" class="image-preview-mini"><p style="font-size:12px;">✅ ready (${(file.size/1024).toFixed(1)}KB)</p>`;
+        document.getElementById('blogImageUrl').value = '';
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+  
+  function clearBlogImagePreview() { uploadedBlogImageData = null; document.getElementById('blogImagePreviewArea').innerHTML = ''; document.getElementById('blogImageUpload').value = ''; document.getElementById('blogImageUrl').value = ''; }
+
+  function renderPublicSite() {
+    const epContainer = document.getElementById('episodesContainer');
+    if (epContainer) {
+      if (episodes.length === 0) {
+        epContainer.innerHTML = '<div style="text-align:center; padding:40px;">No episodes yet. Add some in the admin panel!</div>';
+      } else {
+        epContainer.innerHTML = episodes.map(ep => `
+          <div class="episode-card" onclick="window.open('${escapeHtml(ep.link)}', '_blank')">
+            <img class="episode-cover" src="${escapeHtml(ep.cover)}" onerror="this.src='https://picsum.photos/id/1/400/200'">
+            <div class="episode-info">
+              <div class="episode-title">${escapeHtml(ep.title)}</div>
+              <div class="episode-author"><i class="fas fa-user-circle"></i> ${escapeHtml(ep.author) || 'Unknown Host'}</div>
+              <div class="episode-desc">${escapeHtml(ep.description)}</div>
+              <div class="listen-link"><i class="fas fa-play-circle"></i> Listen now →</div>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+    const blogContainer = document.getElementById('visitorBlogContainer');
+    if (blogContainer) {
+      if (blogPosts.length === 0) {
+        blogContainer.innerHTML = '<div style="text-align:center; padding:40px;">No blog posts yet. Add some in the admin panel!</div>';
+      } else {
+        blogContainer.innerHTML = blogPosts.slice().reverse().map(post => `
+          <div class="blog-card" onclick="viewFullPost(${post.id})">
+            ${post.imageUrl ? `<img class="blog-card-image" src="${escapeHtml(post.imageUrl)}" onerror="this.style.display='none'">` : ''}
+            <h3>${escapeHtml(post.title)}</h3>
+            <div class="blog-author"><i class="fas fa-pen-fancy"></i> ${escapeHtml(post.author) || 'Unknown Author'}</div>
+            <div class="blog-date"><i class="far fa-calendar-alt"></i> ${escapeHtml(post.date)}</div>
+          </div>
+        `).join('');
+      }
+    }
+  }
+
+  function viewFullPost(id) {
+    const post = blogPosts.find(p => p.id === id);
+    if (post) {
+      const win = window.open();
+      win.document.write(`<html><head><title>${post.title}</title><style>body{font-family:'Inter',sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6;} img{max-width:100%;border-radius:16px;}</style></head><body><h1>${escapeHtml(post.title)}</h1><p style="color:#6b9080; margin-bottom:20px;"><i class="fas fa-user"></i> ${escapeHtml(post.author) || 'Unknown Author'} | ${post.date}</p>${post.content}</body></html>`);
+      win.document.close();
+    }
+  }
+
+  function addFullEpisode() {
+    let cover = document.getElementById('newEpCover').value.trim();
+    const title = document.getElementById('newEpTitle').value.trim();
+    const author = document.getElementById('newEpAuthor').value.trim();
+    const desc = document.getElementById('newEpDesc').value.trim();
+    const link = document.getElementById('newEpLink').value.trim();
+    if (!title || !desc || !link) { alert("Fill title, description and link"); return; }
+    if (uploadedEpisodeImageData) cover = uploadedEpisodeImageData;
+    else if (!cover) cover = "https://picsum.photos/id/100/400/200";
+    const finalAuthor = author || "Anonymous Host";
+    episodes.push({ id: Date.now(), cover, title, author: finalAuthor, description: desc, link });
+    if (saveAllData()) {
+      renderPublicSite(); renderAdminEpisodes();
+      document.getElementById('newEpCover').value = ''; document.getElementById('newEpTitle').value = ''; document.getElementById('newEpAuthor').value = '';
+      document.getElementById('newEpDesc').value = ''; document.getElementById('newEpLink').value = '';
+      clearEpisodeImagePreview(); uploadedEpisodeImageData = null;
+      alert("✅ Episode added!");
+    }
+  }
+
+  function deleteEpisode(id) { if(confirm("Delete?")) { episodes = episodes.filter(ep => ep.id !== id); saveAllData(); renderPublicSite(); renderAdminEpisodes(); } }
+
+  function publishBlogPost() {
+    const title = document.getElementById('newBlogTitle').value.trim();
+    const author = document.getElementById('newBlogAuthor').value.trim();
+    const content = document.getElementById('richEditor').innerHTML;
+    let imageUrl = document.getElementById('blogImageUrl').value.trim();
+    if (!title || !content || content === '<br>' || content === '') { alert("Title and content required"); return; }
+    if (uploadedBlogImageData) imageUrl = uploadedBlogImageData;
+    const finalAuthor = author || "Anonymous Author";
+    blogPosts.unshift({ id: Date.now(), title, author: finalAuthor, imageUrl: imageUrl || null, content, date: new Date().toLocaleDateString() });
+    if (saveAllData()) {
+      renderPublicSite(); renderAdminBlog();
+      document.getElementById('newBlogTitle').value = ''; document.getElementById('newBlogAuthor').value = '';
+      document.getElementById('richEditor').innerHTML = ''; document.getElementById('blogImageUrl').value = '';
+      clearBlogImagePreview(); uploadedBlogImageData = null;
+      alert("✅ Blog posted!");
+    }
+  }
+  
+  function deleteBlogPost(id) { if(confirm("Delete post?")) { blogPosts = blogPosts.filter(p => p.id !== id); saveAllData(); renderPublicSite(); renderAdminBlog(); } }
+
+  function renderAdminEpisodes() {
+    const container = document.getElementById('adminEpisodesList');
+    if (!container) return;
+    container.innerHTML = episodes.map(ep => `<div class="list-item"><div><strong>${escapeHtml(ep.title)}</strong><br><small>👤 ${escapeHtml(ep.author)}</small><br><small>${escapeHtml(ep.description.substring(0,60))}</small></div><button class="btn-danger" onclick="deleteEpisode(${ep.id})">Delete</button></div>`).join('');
+  }
+  
+  function renderAdminBlog() {
+    const container = document.getElementById('adminBlogList');
+    if (!container) return;
+    container.innerHTML = blogPosts.map(post => `<div class="list-item"><div><strong>${escapeHtml(post.title)}</strong><br><small>✍️ ${escapeHtml(post.author)}</small><div style="font-size:12px;">${post.date}</div></div><button class="btn-danger" onclick="deleteBlogPost(${post.id})">Delete</button></div>`).join('');
+  }
+
+  // Rich text helpers
+  function formatDoc(cmd, val=null) { document.getElementById('richEditor').focus(); document.execCommand(cmd, false, val); }
+  function createLink() { let url = prompt("URL (https://)"); if(url) formatDoc('createLink', url); }
+  function insertImageFromUrl() { let img = prompt("Image URL"); if(img) formatDoc('insertImage', img); }
+  function embedVideo() {
+    let url = prompt("YouTube/Vimeo URL");
+    if(url) {
+      let embed = '';
+      if(url.includes('youtu')) { let id = url.split('v=')[1]?.split('&')[0] || url.split('/').pop(); embed = `<iframe width="100%" height="240" src="https://www.youtube.com/embed/${id}" frameborder="0" allowfullscreen style="border-radius:16px;"></iframe>`; }
+      else embed = `<a href="${url}" target="_blank">🎥 Video Link</a>`;
+      document.getElementById('richEditor').focus(); document.execCommand('insertHTML', false, embed);
+    }
+  }
+
+  // ========== HIDDEN AUTHENTICATION - Password now validated on backend ==========
+  async function authenticateAdmin() {
+    const pwd = document.getElementById('adminPasswordInput').value;
+    const loginError = document.createElement('div');
+    loginError.style.color = '#c27e6e';
+    loginError.style.marginTop = '10px';
+    loginError.style.fontSize = '0.9rem';
+    
+    // Remove any existing error message
+    const existingError = document.querySelector('.login-error-msg');
+    if (existingError) existingError.remove();
+    loginError.className = 'login-error-msg';
+    
+    if (!pwd) {
+      loginError.textContent = 'Please enter the admin password';
+      document.getElementById('adminLoginArea').appendChild(loginError);
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/admin/authenticate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password: pwd })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        document.getElementById('adminLoginArea').style.display = 'none';
+        document.getElementById('adminDashboardArea').style.display = 'block';
+        renderAdminEpisodes();
+        renderAdminBlog();
+        activateTabs();
+        document.getElementById('richEditor').innerHTML = '';
+        const errorDiv = document.querySelector('.login-error-msg');
+        if (errorDiv) errorDiv.remove();
+      } else {
+        loginError.textContent = result.message || "My apologize, you're not the admin.";
+        document.getElementById('adminLoginArea').appendChild(loginError);
+      }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      loginError.textContent = 'Network error. Please make sure the server is running.';
+      document.getElementById('adminLoginArea').appendChild(loginError);
+    }
+  }
+  
+  async function logoutAndClose() {
+    try {
+      await fetch('/api/admin/logout', { method: 'POST' });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    closeAdminDashboard();
+  }
+  // ========== END OF HIDDEN AUTHENTICATION ==========
+
+  function openAdminDashboard() { document.getElementById('adminModal').style.display = 'flex'; document.getElementById('adminLoginArea').style.display = 'block'; document.getElementById('adminDashboardArea').style.display = 'none'; }
+  function closeAdminDashboard() { document.getElementById('adminModal').style.display = 'none'; }
+  
+  function activateTabs() { 
+    const tabs = document.querySelectorAll('.tab-btn'); 
+    const panes = document.querySelectorAll('.tab-pane'); 
+    tabs.forEach(btn => { 
+      btn.removeEventListener('click', activateTabsHandler);
+      btn.addEventListener('click', activateTabsHandler);
+    }); 
+    function activateTabsHandler() {
+      const tabId = this.getAttribute('data-tab'); 
+      tabs.forEach(b => b.classList.remove('active')); 
+      this.classList.add('active'); 
+      panes.forEach(p => p.classList.remove('active-pane')); 
+      document.getElementById(tabId).classList.add('active-pane');
+    }
+  }
+  
+  function scrollToEpisodes() { document.getElementById('episodes-section').scrollIntoView({ behavior: 'smooth' }); }
+  function scrollToBlog() { document.getElementById('blog-section').scrollIntoView({ behavior: 'smooth' }); }
+  function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+
+  document.getElementById('adminModal').addEventListener('click', e => { if(e.target === document.getElementById('adminModal')) closeAdminDashboard(); });
+  loadData();
+</script>
+</body>
+</html>
