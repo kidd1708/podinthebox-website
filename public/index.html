@@ -257,6 +257,126 @@
       align-items: center;
       gap: 8px;
     }
+    
+    /* Submit Story Section */
+    .story-section {
+      background: linear-gradient(135deg, rgba(107,144,128,0.1), rgba(107,144,128,0.05));
+      border-radius: 48px;
+      padding: 48px;
+      margin: 40px 0 60px;
+      border: 2px solid #d6cf9f;
+    }
+    .story-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: start;
+    }
+    .story-info h3 {
+      font-size: 2rem;
+      margin-bottom: 16px;
+      color: #3a5c4f;
+    }
+    .story-info p {
+      color: #5a6e5a;
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+    .story-features {
+      list-style: none;
+      margin-top: 24px;
+    }
+    .story-features li {
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #4a6b5e;
+    }
+    .story-features i {
+      color: #6b9080;
+      font-size: 1.2rem;
+    }
+    .story-form {
+      background: rgba(255, 252, 235, 0.9);
+      padding: 32px;
+      border-radius: 32px;
+      border: 1px solid #d6cf9f;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      font-weight: 700;
+      display: block;
+      margin-bottom: 8px;
+      color: #3a5c4f;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #cbc38b;
+      border-radius: 28px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      background: #fffef7;
+      transition: 0.2s;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #6b9080;
+      box-shadow: 0 0 0 2px rgba(107,144,128,0.2);
+    }
+    .story-submit-btn {
+      width: 100%;
+      background: #6b9080;
+      color: #e9e6c2;
+      border: none;
+      padding: 14px;
+      font-weight: 700;
+      border-radius: 60px;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: 0.2s;
+    }
+    .story-submit-btn:hover {
+      background: #557a6a;
+      transform: translateY(-2px);
+    }
+    .story-submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .toast-notification {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: #4a6b5e;
+      color: white;
+      padding: 16px 24px;
+      border-radius: 60px;
+      font-weight: 600;
+      z-index: 1000;
+      animation: slideIn 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    @keyframes slideIn {
+      from { transform: translateX(400px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @media (max-width: 900px) {
+      .story-grid { grid-template-columns: 1fr; gap: 32px; }
+      .story-section { padding: 32px; }
+    }
+    
     footer {
       text-align: center;
       padding: 40px 0;
@@ -495,6 +615,7 @@
     <div class="nav-links">
       <a onclick="scrollToEpisodes()">Episodes</a>
       <a onclick="scrollToBlog()">Blog</a>
+      <a onclick="scrollToStory()">Submit Story</a>
       <div class="admin-badge-btn" onclick="openAdminDashboard()"><i class="fas fa-user-shield"></i> Admin Panel</div>
     </div>
   </div>
@@ -511,11 +632,68 @@
         <button class="btn-primary btn-outline" onclick="window.open('https://www.tiktok.com/@podinthebox_official','_blank')"><i class="fa-brands fa-tiktok"></i> TikTok</button>
       </div>
     </div>
+    
+    <!-- Submit Your Story Section -->
+    <div id="story-section" class="story-section">
+      <div class="story-grid">
+        <div class="story-info">
+          <h3><i class="fas fa-pen-fancy"></i> Submit Your Story</h3>
+          <p>Have an amazing story to share? We'd love to hear from you! Your story might be featured in our next episode or blog post.</p>
+          <ul class="story-features">
+            <li><i class="fas fa-check-circle"></i> Get featured on our podcast</li>
+            <li><i class="fas fa-check-circle"></i> Share your unique perspective</li>
+            <li><i class="fas fa-check-circle"></i> Inspire our community</li>
+            <li><i class="fas fa-check-circle"></i> We'll credit you as the author</li>
+          </ul>
+        </div>
+        <div class="story-form">
+          <form id="storyForm">
+            <div class="form-group">
+              <label><i class="fas fa-user"></i> Your Name *</label>
+              <input type="text" id="storyName" required placeholder="e.g., John Doe">
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-envelope"></i> Email Address *</label>
+              <input type="email" id="storyEmail" required placeholder="you@example.com">
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-tag"></i> Story Category</label>
+              <select id="storyCategory">
+                <option value="Personal Experience">Personal Experience</option>
+                <option value="Inspirational">Inspirational</option>
+                <option value="Funny/Memorable">Funny/Memorable</option>
+                <option value="Life Lesson">Life Lesson</option>
+                <option value="Creative Writing">Creative Writing</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-heading"></i> Story Title *</label>
+              <input type="text" id="storyTitle" required placeholder="A catchy title for your story">
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-align-left"></i> Your Story *</label>
+              <textarea id="storyContent" rows="6" required placeholder="Share your story here... (minimum 50 characters)"></textarea>
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-check-square"></i> I agree to the terms</label>
+              <label style="display: flex; align-items: center; gap: 10px; font-weight: normal;">
+                <input type="checkbox" id="storyConsent" required> I confirm that this is my original story and I give permission for POD IN THE BOX to share it (with credit)
+              </label>
+            </div>
+            <button type="submit" class="story-submit-btn" id="submitStoryBtn">
+              <i class="fas fa-paper-plane"></i> Submit Your Story
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    
     <div id="episodes-section"><div class="section-title"><i class="fas fa-headphones"></i> Latest episodes</div><div id="episodesContainer" class="episode-grid"></div></div>
     <div id="blog-section"><div class="section-title"><i class="fas fa-blog"></i> From the blog</div><div id="visitorBlogContainer" class="blog-grid"></div></div>
   </div>
 </main>
-<footer><div class="container"><p>© 2026 POD IN THE BOX — made with love and machines <i class="fas fa-podcast"></i> | Pod in the Box</p></div></footer>
+<footer><div class="container"><p>© 2026 POD IN THE BOX — made with love and machines <i class="fas fa-podcast"></i> | Pod in the Box</p><p style="margin-top: 12px; font-size: 0.85rem;"><i class="fas fa-envelope"></i> Contact: podinthebox_official@hotmail.com</p></footer>
 
 <!-- ADMIN DASHBOARD -->
 <div id="adminModal" class="admin-overlay">
@@ -533,7 +711,7 @@
         <i class="fas fa-info-circle"></i> Tip: For best results, use small images (under 500KB) or use image URLs from the web!
       </div>
       
-      <div class="admin-tabs"><button class="tab-btn active" data-tab="episodesTab">🎙️ Episodes</button><button class="tab-btn" data-tab="blogTab">📝 Blog Manager</button></div>
+      <div class="admin-tabs"><button class="tab-btn active" data-tab="episodesTab">🎙️ Episodes</button><button class="tab-btn" data-tab="blogTab">📝 Blog Manager</button><button class="tab-btn" data-tab="storiesTab">📖 Story Submissions</button></div>
       
       <!-- EPISODES TAB with Author field -->
       <div id="episodesTab" class="tab-pane active-pane">
@@ -590,21 +768,23 @@
         <h3>📚 Manage Blog Posts</h3>
         <div id="adminBlogList" class="item-list"></div>
       </div>
+      
+      <!-- STORY SUBMISSIONS TAB -->
+      <div id="storiesTab" class="tab-pane">
+        <h3><i class="fas fa-inbox"></i> Story Submissions</h3>
+        <div id="adminStoriesList" class="item-list"></div>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
   // --- SAMPLE DATA with AUTHOR NAMES ---
-  let episodes = [
-    { id: 1, cover: "https://picsum.photos/id/100/400/200", title: "S1E1: The Beginning", author: "Alex Rivera", description: "Welcome to POD IN THE BOX! First episode about honest conversations.", link: "https://open.spotify.com/" },
-    { id: 2, cover: "https://picsum.photos/id/101/400/200", title: "S1E2: Raw Stories", author: "Taylor Chen", description: "Real people, real stories. No filters, just truth.", link: "https://www.noice.com/" }
-  ];
-  
-  let blogPosts = [
-    { id: 101, title: "Welcome to POD IN THE BOX!", author: "Alex Rivera", imageUrl: "https://picsum.photos/id/20/400/200", content: "<p><strong>Welcome</strong> to our first blog post! We're excited to share honest conversations with you.</p>", date: new Date().toLocaleDateString() },
-    { id: 102, title: "Why Podcasting Matters", author: "Sarah Jenkins", imageUrl: "https://picsum.photos/id/26/400/200", content: "<p>Podcasting creates <em>intimacy</em> like no other medium. Here's why we love it.</p>", date: new Date().toLocaleDateString() }
-  ];
+  let episodes = [];
+
+  let blogPosts = [];
+
+  let storySubmissions = [];
 
   let uploadedEpisodeImageData = null;
   let uploadedBlogImageData = null;
@@ -613,6 +793,7 @@
     try {
       localStorage.setItem('podinthebox_episodes', JSON.stringify(episodes));
       localStorage.setItem('podinthebox_blog', JSON.stringify(blogPosts));
+      localStorage.setItem('podinthebox_stories', JSON.stringify(storySubmissions));
       return true;
     } catch(e) {
       if (e.name === 'QuotaExceededError') {
@@ -629,6 +810,8 @@
     if (storedEp) episodes = JSON.parse(storedEp);
     const storedBlog = localStorage.getItem('podinthebox_blog');
     if (storedBlog) blogPosts = JSON.parse(storedBlog);
+    const storedStories = localStorage.getItem('podinthebox_stories');
+    if (storedStories) storySubmissions = JSON.parse(storedStories);
     renderPublicSite();
   }
 
@@ -755,6 +938,8 @@
   }
   
   function deleteBlogPost(id) { if(confirm("Delete post?")) { blogPosts = blogPosts.filter(p => p.id !== id); saveAllData(); renderPublicSite(); renderAdminBlog(); } }
+  
+  function deleteStory(id) { if(confirm("Delete this submission?")) { storySubmissions = storySubmissions.filter(s => s.id !== id); saveAllData(); renderAdminStories(); } }
 
   function renderAdminEpisodes() {
     const container = document.getElementById('adminEpisodesList');
@@ -766,6 +951,28 @@
     const container = document.getElementById('adminBlogList');
     if (!container) return;
     container.innerHTML = blogPosts.map(post => `<div class="list-item"><div><strong>${escapeHtml(post.title)}</strong><br><small>✍️ ${escapeHtml(post.author)}</small><div style="font-size:12px;">${post.date}</div></div><button class="btn-danger" onclick="deleteBlogPost(${post.id})">Delete</button></div>`).join('');
+  }
+  
+  function renderAdminStories() {
+    const container = document.getElementById('adminStoriesList');
+    if (!container) return;
+    if (storySubmissions.length === 0) {
+      container.innerHTML = '<div class="list-item">No story submissions yet.</div>';
+      return;
+    }
+    container.innerHTML = storySubmissions.slice().reverse().map(story => `
+      <div class="list-item">
+        <div>
+          <strong>📖 ${escapeHtml(story.title)}</strong><br>
+          <small><i class="fas fa-user"></i> ${escapeHtml(story.name)}</small><br>
+          <small><i class="fas fa-envelope"></i> ${escapeHtml(story.email)}</small><br>
+          <small><i class="fas fa-tag"></i> ${escapeHtml(story.category)}</small><br>
+          <small><i class="fas fa-calendar"></i> ${story.date}</small><br>
+          <details><summary>📄 Read Story</summary><div style="margin-top: 10px; padding: 10px; background: #fffef7; border-radius: 16px;">${escapeHtml(story.content.substring(0, 500))}${story.content.length > 500 ? '...' : ''}</div></details>
+        </div>
+        <button class="btn-danger" onclick="deleteStory(${story.id})">Delete</button>
+      </div>
+    `).join('');
   }
 
   // Rich text helpers
@@ -780,6 +987,95 @@
       else embed = `<a href="${url}" target="_blank">🎥 Video Link</a>`;
       document.getElementById('richEditor').focus(); document.execCommand('insertHTML', false, embed);
     }
+  }
+
+  // Story submission handler
+  document.getElementById('storyForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('storyName').value.trim();
+    const email = document.getElementById('storyEmail').value.trim();
+    const category = document.getElementById('storyCategory').value;
+    const title = document.getElementById('storyTitle').value.trim();
+    const content = document.getElementById('storyContent').value.trim();
+    const consent = document.getElementById('storyConsent').checked;
+    
+    if (!name || !email || !title || !content || !consent) {
+      alert('Please fill in all required fields and agree to the terms.');
+      return;
+    }
+    
+    if (content.length < 50) {
+      alert('Please write at least 50 characters for your story.');
+      return;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+    
+    const submitBtn = document.getElementById('submitStoryBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    
+    try {
+      // Send email via mailto: as fallback, but also store locally
+      const subject = encodeURIComponent(`Story Submission: ${title} from ${name}`);
+      const body = encodeURIComponent(
+        `Name: ${name}\n` +
+        `Email: ${email}\n` +
+        `Category: ${category}\n` +
+        `Story Title: ${title}\n\n` +
+        `Story:\n${content}`
+      );
+      
+      // Store in localStorage
+      const newStory = {
+        id: Date.now(),
+        name: name,
+        email: email,
+        category: category,
+        title: title,
+        content: content,
+        date: new Date().toLocaleString()
+      };
+      storySubmissions.push(newStory);
+      saveAllData();
+      
+      // Open email client
+      window.location.href = `mailto:podinthebox_official@hotmail.com?subject=${subject}&body=${body}`;
+      
+      // Show success message
+      const toast = document.createElement('div');
+      toast.className = 'toast-notification';
+      toast.innerHTML = '<i class="fas fa-check-circle"></i> Thank you! Your story has been submitted. Your email client will open to complete the submission.';
+      document.body.appendChild(toast);
+      
+      // Reset form
+      document.getElementById('storyForm').reset();
+      
+      setTimeout(() => {
+        toast.remove();
+      }, 5000);
+      
+    } catch (error) {
+      console.error('Error submitting story:', error);
+      alert('There was an error submitting your story. Please try again or email us directly at podinthebox_official@hotmail.com');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Your Story';
+    }
+  });
+  
+  function showToast(message, isError = false) {
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.style.background = isError ? '#c27e6e' : '#4a6b5e';
+    toast.innerHTML = isError ? `<i class="fas fa-exclamation-triangle"></i> ${message}` : `<i class="fas fa-check-circle"></i> ${message}`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
   }
 
   // ========== HIDDEN AUTHENTICATION - Password now validated on backend ==========
@@ -817,6 +1113,7 @@
         document.getElementById('adminDashboardArea').style.display = 'block';
         renderAdminEpisodes();
         renderAdminBlog();
+        renderAdminStories();
         activateTabs();
         document.getElementById('richEditor').innerHTML = '';
         const errorDiv = document.querySelector('.login-error-msg');
@@ -858,11 +1155,13 @@
       this.classList.add('active'); 
       panes.forEach(p => p.classList.remove('active-pane')); 
       document.getElementById(tabId).classList.add('active-pane');
+      if (tabId === 'storiesTab') renderAdminStories();
     }
   }
   
   function scrollToEpisodes() { document.getElementById('episodes-section').scrollIntoView({ behavior: 'smooth' }); }
   function scrollToBlog() { document.getElementById('blog-section').scrollIntoView({ behavior: 'smooth' }); }
+  function scrollToStory() { document.getElementById('story-section').scrollIntoView({ behavior: 'smooth' }); }
   function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
 
   document.getElementById('adminModal').addEventListener('click', e => { if(e.target === document.getElementById('adminModal')) closeAdminDashboard(); });
