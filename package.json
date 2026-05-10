@@ -1,13 +1,19 @@
 {
-  "name": "podinthebox-server",
+  "name": "pod-in-the-box",
   "version": "1.0.0",
+  "description": "Podcast website with CMS",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "dotenv": "^10.0.0",
-    "express-session": "^1.17.2"
+    "dotenv": "^16.3.1",
+    "express": "^4.22.1",
+    "express-session": "^1.19.0",
+    "sqlite3": "^6.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
   }
 }
