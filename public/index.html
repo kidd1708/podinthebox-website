@@ -693,7 +693,7 @@
     <div id="blog-section"><div class="section-title"><i class="fas fa-blog"></i> From the blog</div><div id="visitorBlogContainer" class="blog-grid"></div></div>
   </div>
 </main>
-<footer><div class="container"><p>© 2026 POD IN THE BOX — made with love and machines <i class="fas fa-podcast"></i> | Pod in the Box</p><p style="margin-top: 12px; font-size: 0.85rem;"><i class="fas fa-envelope"></i> Contact: podinthebox_official@hotmail.com</p></footer>
+<footer><div class="container"><p>© 2026 POD IN THE BOX — made with love and machines <i class="fas fa-podcast"></i> | Pod in the Box</p><p style="margin-top: 12px; font-size: 0.85rem;"><i class="fas fa-envelope"></i> Contact: podintheboxpodcast_official@hotmail.com</p></footer>
 
 <!-- ADMIN DASHBOARD -->
 <div id="adminModal" class="admin-overlay">
@@ -779,40 +779,63 @@
 </div>
 
 <script>
-  // --- SAMPLE DATA with AUTHOR NAMES ---
+  // --- DATA STORAGE (now using API) ---
   let episodes = [];
-
   let blogPosts = [];
-
   let storySubmissions = [];
 
   let uploadedEpisodeImageData = null;
   let uploadedBlogImageData = null;
 
-  function saveAllData() {
+  // ========== API FUNCTIONS ==========
+  
+  async function loadEpisodes() {
     try {
-      localStorage.setItem('podinthebox_episodes', JSON.stringify(episodes));
-      localStorage.setItem('podinthebox_blog', JSON.stringify(blogPosts));
-      localStorage.setItem('podinthebox_stories', JSON.stringify(storySubmissions));
-      return true;
-    } catch(e) {
-      if (e.name === 'QuotaExceededError') {
-        alert("⚠️ Storage limit reached! Your uploaded image is too large. Please use smaller images (under 500KB) or use image URLs instead.");
+      const response = await fetch('/api/episodes');
+      if (response.ok) {
+        episodes = await response.json();
+        renderPublicSite();
+        if (document.getElementById('adminEpisodesList')) renderAdminEpisodes();
       } else {
-        alert("Error saving: " + e.message);
+        console.error('Failed to load episodes');
       }
-      return false;
+    } catch (error) {
+      console.error('Error loading episodes:', error);
     }
   }
-  
-  function loadData() {
-    const storedEp = localStorage.getItem('podinthebox_episodes');
-    if (storedEp) episodes = JSON.parse(storedEp);
-    const storedBlog = localStorage.getItem('podinthebox_blog');
-    if (storedBlog) blogPosts = JSON.parse(storedBlog);
-    const storedStories = localStorage.getItem('podinthebox_stories');
-    if (storedStories) storySubmissions = JSON.parse(storedStories);
-    renderPublicSite();
+
+  async function loadBlogPosts() {
+    try {
+      const response = await fetch('/api/blog');
+      if (response.ok) {
+        blogPosts = await response.json();
+        renderPublicSite();
+        if (document.getElementById('adminBlogList')) renderAdminBlog();
+      } else {
+        console.error('Failed to load blog posts');
+      }
+    } catch (error) {
+      console.error('Error loading blog posts:', error);
+    }
+  }
+
+  async function loadStories() {
+    try {
+      const response = await fetch('/api/stories');
+      if (response.ok) {
+        storySubmissions = await response.json();
+        if (document.getElementById('adminStoriesList')) renderAdminStories();
+      } else {
+        console.error('Failed to load stories');
+      }
+    } catch (error) {
+      console.error('Error loading stories:', error);
+    }
+  }
+
+  async function loadAllData() {
+    await loadEpisodes();
+    await loadBlogPosts();
   }
 
   // Image upload listeners
@@ -878,7 +901,7 @@
       } else {
         blogContainer.innerHTML = blogPosts.slice().reverse().map(post => `
           <div class="blog-card" onclick="viewFullPost(${post.id})">
-            ${post.imageUrl ? `<img class="blog-card-image" src="${escapeHtml(post.imageUrl)}" onerror="this.style.display='none'">` : ''}
+            ${post.image_url ? `<img class="blog-card-image" src="${escapeHtml(post.image_url)}" onerror="this.style.display='none'">` : ''}
             <h3>${escapeHtml(post.title)}</h3>
             <div class="blog-author"><i class="fas fa-pen-fancy"></i> ${escapeHtml(post.author) || 'Unknown Author'}</div>
             <div class="blog-date"><i class="far fa-calendar-alt"></i> ${escapeHtml(post.date)}</div>
@@ -897,54 +920,126 @@
     }
   }
 
-  function addFullEpisode() {
+  async function addFullEpisode() {
     let cover = document.getElementById('newEpCover').value.trim();
     const title = document.getElementById('newEpTitle').value.trim();
     const author = document.getElementById('newEpAuthor').value.trim();
     const desc = document.getElementById('newEpDesc').value.trim();
     const link = document.getElementById('newEpLink').value.trim();
+    
     if (!title || !desc || !link) { alert("Fill title, description and link"); return; }
     if (uploadedEpisodeImageData) cover = uploadedEpisodeImageData;
     else if (!cover) cover = "https://picsum.photos/id/100/400/200";
     const finalAuthor = author || "Anonymous Host";
-    episodes.push({ id: Date.now(), cover, title, author: finalAuthor, description: desc, link });
-    if (saveAllData()) {
-      renderPublicSite(); renderAdminEpisodes();
-      document.getElementById('newEpCover').value = ''; document.getElementById('newEpTitle').value = ''; document.getElementById('newEpAuthor').value = '';
-      document.getElementById('newEpDesc').value = ''; document.getElementById('newEpLink').value = '';
-      clearEpisodeImagePreview(); uploadedEpisodeImageData = null;
-      alert("✅ Episode added!");
+    
+    try {
+      const response = await fetch('/api/episodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cover, title, author: finalAuthor, description: desc, link })
+      });
+      
+      if (response.ok) {
+        await loadEpisodes();
+        document.getElementById('newEpCover').value = '';
+        document.getElementById('newEpTitle').value = '';
+        document.getElementById('newEpAuthor').value = '';
+        document.getElementById('newEpDesc').value = '';
+        document.getElementById('newEpLink').value = '';
+        clearEpisodeImagePreview();
+        alert("✅ Episode added!");
+      } else {
+        const error = await response.json();
+        alert("Failed to add episode: " + (error.error || "Unknown error"));
+      }
+    } catch (error) {
+      alert("Error: " + error.message);
     }
   }
 
-  function deleteEpisode(id) { if(confirm("Delete?")) { episodes = episodes.filter(ep => ep.id !== id); saveAllData(); renderPublicSite(); renderAdminEpisodes(); } }
+  async function deleteEpisode(id) { 
+    if(!confirm("Delete?")) return;
+    try {
+      const response = await fetch(`/api/episodes/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        await loadEpisodes();
+      } else {
+        alert("Failed to delete episode");
+      }
+    } catch(error) { alert("Error: " + error.message); }
+  }
 
-  function publishBlogPost() {
+  async function publishBlogPost() {
     const title = document.getElementById('newBlogTitle').value.trim();
     const author = document.getElementById('newBlogAuthor').value.trim();
     const content = document.getElementById('richEditor').innerHTML;
     let imageUrl = document.getElementById('blogImageUrl').value.trim();
-    if (!title || !content || content === '<br>' || content === '') { alert("Title and content required"); return; }
+    
+    if (!title || !content || content === '<br>' || content === '') { 
+      alert("Title and content required"); 
+      return; 
+    }
     if (uploadedBlogImageData) imageUrl = uploadedBlogImageData;
     const finalAuthor = author || "Anonymous Author";
-    blogPosts.unshift({ id: Date.now(), title, author: finalAuthor, imageUrl: imageUrl || null, content, date: new Date().toLocaleDateString() });
-    if (saveAllData()) {
-      renderPublicSite(); renderAdminBlog();
-      document.getElementById('newBlogTitle').value = ''; document.getElementById('newBlogAuthor').value = '';
-      document.getElementById('richEditor').innerHTML = ''; document.getElementById('blogImageUrl').value = '';
-      clearBlogImagePreview(); uploadedBlogImageData = null;
-      alert("✅ Blog posted!");
+    
+    try {
+      const response = await fetch('/api/blog', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title, 
+          author: finalAuthor, 
+          image_url: imageUrl || null, 
+          content, 
+          date: new Date().toLocaleDateString() 
+        })
+      });
+      
+      if (response.ok) {
+        await loadBlogPosts();
+        document.getElementById('newBlogTitle').value = '';
+        document.getElementById('newBlogAuthor').value = '';
+        document.getElementById('richEditor').innerHTML = '';
+        document.getElementById('blogImageUrl').value = '';
+        clearBlogImagePreview();
+        alert("✅ Blog posted!");
+      } else {
+        const error = await response.json();
+        alert("Failed to post blog: " + (error.error || "Unknown error"));
+      }
+    } catch (error) {
+      alert("Error: " + error.message);
     }
   }
   
-  function deleteBlogPost(id) { if(confirm("Delete post?")) { blogPosts = blogPosts.filter(p => p.id !== id); saveAllData(); renderPublicSite(); renderAdminBlog(); } }
+  async function deleteBlogPost(id) { 
+    if(!confirm("Delete post?")) return;
+    try {
+      const response = await fetch(`/api/blog/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        await loadBlogPosts();
+      } else {
+        alert("Failed to delete post");
+      }
+    } catch(error) { alert("Error: " + error.message); }
+  }
   
-  function deleteStory(id) { if(confirm("Delete this submission?")) { storySubmissions = storySubmissions.filter(s => s.id !== id); saveAllData(); renderAdminStories(); } }
+  async function deleteStory(id) { 
+    if(!confirm("Delete this submission?")) return;
+    try {
+      const response = await fetch(`/api/stories/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        await loadStories();
+      } else {
+        alert("Failed to delete story");
+      }
+    } catch(error) { alert("Error: " + error.message); }
+  }
 
   function renderAdminEpisodes() {
     const container = document.getElementById('adminEpisodesList');
     if (!container) return;
-    container.innerHTML = episodes.map(ep => `<div class="list-item"><div><strong>${escapeHtml(ep.title)}</strong><br><small>👤 ${escapeHtml(ep.author)}</small><br><small>${escapeHtml(ep.description.substring(0,60))}</small></div><button class="btn-danger" onclick="deleteEpisode(${ep.id})">Delete</button></div>`).join('');
+    container.innerHTML = episodes.map(ep => `<div class="list-item"><div><strong>${escapeHtml(ep.title)}</strong><br><small>👤 ${escapeHtml(ep.author)}</small><br><small>${escapeHtml(ep.description ? ep.description.substring(0,60) : '')}</small></div><button class="btn-danger" onclick="deleteEpisode(${ep.id})">Delete</button></div>`).join('');
   }
   
   function renderAdminBlog() {
@@ -968,7 +1063,7 @@
           <small><i class="fas fa-envelope"></i> ${escapeHtml(story.email)}</small><br>
           <small><i class="fas fa-tag"></i> ${escapeHtml(story.category)}</small><br>
           <small><i class="fas fa-calendar"></i> ${story.date}</small><br>
-          <details><summary>📄 Read Story</summary><div style="margin-top: 10px; padding: 10px; background: #fffef7; border-radius: 16px;">${escapeHtml(story.content.substring(0, 500))}${story.content.length > 500 ? '...' : ''}</div></details>
+          <details><summary>📄 Read Story</summary><div style="margin-top: 10px; padding: 10px; background: #fffef7; border-radius: 16px;">${escapeHtml(story.content ? story.content.substring(0, 500) : '')}${story.content && story.content.length > 500 ? '...' : ''}</div></details>
         </div>
         <button class="btn-danger" onclick="deleteStory(${story.id})">Delete</button>
       </div>
@@ -1021,7 +1116,25 @@
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
     
     try {
-      // Send email via mailto: as fallback, but also store locally
+      // Store in database via API
+      const response = await fetch('/api/stories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name,
+          email: email,
+          category: category,
+          title: title,
+          content: content,
+          date: new Date().toLocaleString()
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save story');
+      }
+      
+      // Also open email client as fallback/notification
       const subject = encodeURIComponent(`Story Submission: ${title} from ${name}`);
       const body = encodeURIComponent(
         `Name: ${name}\n` +
@@ -1031,21 +1144,7 @@
         `Story:\n${content}`
       );
       
-      // Store in localStorage
-      const newStory = {
-        id: Date.now(),
-        name: name,
-        email: email,
-        category: category,
-        title: title,
-        content: content,
-        date: new Date().toLocaleString()
-      };
-      storySubmissions.push(newStory);
-      saveAllData();
-      
-      // Open email client
-      window.location.href = `mailto:podinthebox_official@hotmail.com?subject=${subject}&body=${body}`;
+      window.location.href = `mailto:podintheboxpodcast_official@hotmail.com?subject=${subject}&body=${body}`;
       
       // Show success message
       const toast = document.createElement('div');
@@ -1078,7 +1177,7 @@
     setTimeout(() => toast.remove(), 4000);
   }
 
-  // ========== HIDDEN AUTHENTICATION - Password now validated on backend ==========
+  // ========== AUTHENTICATION ==========
   async function authenticateAdmin() {
     const pwd = document.getElementById('adminPasswordInput').value;
     const loginError = document.createElement('div');
@@ -1111,6 +1210,9 @@
       if (result.success) {
         document.getElementById('adminLoginArea').style.display = 'none';
         document.getElementById('adminDashboardArea').style.display = 'block';
+        await loadEpisodes();
+        await loadBlogPosts();
+        await loadStories();
         renderAdminEpisodes();
         renderAdminBlog();
         renderAdminStories();
@@ -1137,7 +1239,6 @@
     }
     closeAdminDashboard();
   }
-  // ========== END OF HIDDEN AUTHENTICATION ==========
 
   function openAdminDashboard() { document.getElementById('adminModal').style.display = 'flex'; document.getElementById('adminLoginArea').style.display = 'block'; document.getElementById('adminDashboardArea').style.display = 'none'; }
   function closeAdminDashboard() { document.getElementById('adminModal').style.display = 'none'; }
@@ -1165,7 +1266,9 @@
   function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
 
   document.getElementById('adminModal').addEventListener('click', e => { if(e.target === document.getElementById('adminModal')) closeAdminDashboard(); });
-  loadData();
+  
+  // Initialize - load data from API instead of localStorage
+  loadAllData();
 </script>
 </body>
 </html>
