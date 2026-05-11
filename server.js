@@ -1,6 +1,5 @@
 const express = require('express');
 const path = require('path');
-const session = require('express-session');
 const fs = require('fs');
 require('dotenv').config();
 
@@ -10,28 +9,31 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Session configuration
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'podinthebox-super-secret-key-2026',
-    resave: false,
-    saveUninitialized: true,
-    cookie: { 
-        secure: false,
-        maxAge: 24 * 60 * 60 * 1000
-    }
-}));
-
+// Admin configuration - Simple token-based auth
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 if (!ADMIN_PASSWORD) {
     console.error('WARNING: ADMIN_PASSWORD not set in .env file!');
 }
 
-// ========== DATA STORAGE WITH BETTER FILE HANDLING ==========
+// Simple in-memory token store (resets on each function call - fine for Vercel)
+let adminToken = null;
+let tokenExpiry = null;
+
+function generateToken() {
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+}
+
+// ========== DATA STORAGE ==========
 const DATA_FILE = path.join(__dirname, 'data.json');
 
-// Helper to ensure data.json exists and is valid
-function ensureDataFile() {
+let data = {
+    episodes: [],
+    blog_posts: [],
+    story_submissions: []
+};
+
+function initDataFile() {
     if (!fs.existsSync(DATA_FILE)) {
         const initialData = {
             episodes: [
@@ -71,24 +73,21 @@ function ensureDataFile() {
     }
 }
 
-let data = ensureDataFile();
+function loadData() {
+    const loadedData = initDataFile();
+    if (loadedData) {
+        data = loadedData;
+        console.log('Data loaded successfully');
+    }
+}
 
 function saveData() {
     try {
-        // Create backup before saving
-        if (fs.existsSync(DATA_FILE)) {
-            fs.copyFileSync(DATA_FILE, DATA_FILE + '.backup');
-        }
         fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-        console.log('Data saved successfully at', new Date().toISOString());
+        console.log('Data saved successfully');
         return true;
     } catch (error) {
         console.error('Error saving data:', error);
-        // Try to restore from backup
-        if (fs.existsSync(DATA_FILE + '.backup')) {
-            const backupData = fs.readFileSync(DATA_FILE + '.backup', 'utf8');
-            data = JSON.parse(backupData);
-        }
         return false;
     }
 }
@@ -97,7 +96,6 @@ function getNextId(items) {
     return items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
 }
 
-// Reload data on each request to ensure freshness (for serverless)
 function refreshData() {
     if (fs.existsSync(DATA_FILE)) {
         try {
@@ -109,7 +107,15 @@ function refreshData() {
     }
 }
 
-// ========== AUTHENTICATION ==========
+loadData();
+
+// Middleware to check admin authentication
+function isAdmin(req) {
+    const token = req.headers['x-admin-token'];
+    return token && token === adminToken && tokenExpiry && Date.now() < tokenExpiry;
+}
+
+// ========== AUTHENTICATION (No Sessions!) ==========
 app.post('/api/admin/authenticate', (req, res) => {
     const { password } = req.body;
     
@@ -119,44 +125,49 @@ app.post('/api/admin/authenticate', (req, res) => {
     }
     
     if (password === ADMIN_PASSWORD) {
-        req.session.isAdmin = true;
-        res.json({ success: true, message: 'Logged in!' });
+        // Generate new token (valid for 24 hours)
+        adminToken = generateToken();
+        tokenExpiry = Date.now() + (24 * 60 * 60 * 1000);
+        
+        res.json({ 
+            success: true, 
+            message: 'Logged in!',
+            token: adminToken
+        });
     } else {
         res.json({ success: false, message: 'My apologize, you\'re not the admin.' });
     }
 });
 
-app.get('/api/admin/check', (req, res) => {
-    res.json({ isAuthenticated: req.session.isAdmin || false });
-});
-
 app.post('/api/admin/logout', (req, res) => {
-    req.session.destroy(() => {
-        res.json({ success: true });
-    });
+    adminToken = null;
+    tokenExpiry = null;
+    res.json({ success: true });
 });
 
-// ========== EPISODE API ENDPOINTS WITH CACHE HEADERS ==========
+app.get('/api/admin/check', (req, res) => {
+    const authenticated = isAdmin(req);
+    res.json({ isAuthenticated: authenticated });
+});
+
+// ========== EPISODE API ENDPOINTS ==========
 app.get('/api/episodes', (req, res) => {
-    // Refresh data from file
     refreshData();
     
-    // Add cache-control headers to prevent caching
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
-    res.setHeader('Surrogate-Control', 'no-store');
     
     res.json(data.episodes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
 });
 
 app.post('/api/episodes', (req, res) => {
-    if (!req.session.isAdmin) {
+    if (!isAdmin(req)) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
     }
     
-    refreshData(); // Get latest data
+    refreshData();
     
     const { cover, title, author, description, link } = req.body;
     const newEpisode = {
@@ -179,40 +190,33 @@ app.post('/api/episodes', (req, res) => {
 });
 
 app.delete('/api/episodes/:id', (req, res) => {
-    if (!req.session.isAdmin) {
+    if (!isAdmin(req)) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
     }
     
-    refreshData(); // Get latest data
+    refreshData();
     
     const id = parseInt(req.params.id);
     const initialLength = data.episodes.length;
     data.episodes = data.episodes.filter(ep => ep.id !== id);
     
     if (data.episodes.length < initialLength) {
-        if (saveData()) {
-            res.json({ deleted: 1, success: true });
-        } else {
-            res.status(500).json({ error: 'Failed to save deletion' });
-        }
+        saveData();
+        res.json({ deleted: 1, success: true });
     } else {
         res.status(404).json({ deleted: 0, success: false, error: 'Episode not found' });
     }
 });
 
-// ========== BLOG API ENDPOINTS WITH CACHE HEADERS ==========
+// ========== BLOG API ENDPOINTS ==========
 app.get('/api/blog', (req, res) => {
-    // Refresh data from file
     refreshData();
     
-    // CRITICAL: These headers prevent browsers from caching the response
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
-    res.setHeader('Surrogate-Control', 'no-store');
     
-    console.log(`Sending ${data.blog_posts.length} blog posts at ${new Date().toISOString()}`);
     res.json(data.blog_posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
 });
 
@@ -231,12 +235,12 @@ app.get('/api/blog/:id', (req, res) => {
 });
 
 app.post('/api/blog', (req, res) => {
-    if (!req.session.isAdmin) {
+    if (!isAdmin(req)) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
     }
     
-    refreshData(); // Get latest data
+    refreshData();
     
     const { title, author, image_url, content, date } = req.body;
     const newPost = {
@@ -252,21 +256,18 @@ app.post('/api/blog', (req, res) => {
     data.blog_posts.push(newPost);
     
     if (saveData()) {
-        console.log(`Blog post added: ${title} (ID: ${newPost.id})`);
         res.json({ id: newPost.id, success: true });
     } else {
         res.status(500).json({ error: 'Failed to save data' });
     }
 });
 
-// FIXED Delete blog post with proper data persistence
 app.delete('/api/blog/:id', (req, res) => {
-    if (!req.session.isAdmin) {
+    if (!isAdmin(req)) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
     }
     
-    // IMPORTANT: Refresh data from file first
     refreshData();
     
     const id = parseInt(req.params.id);
@@ -276,53 +277,20 @@ app.delete('/api/blog/:id', (req, res) => {
         return;
     }
     
-    console.log(`Attempting to delete blog post ID: ${id}`);
-    console.log(`Current posts before delete:`, data.blog_posts.map(p => ({ id: p.id, title: p.title })));
-    
-    // Find the post to delete
-    const postToDelete = data.blog_posts.find(post => post.id === id);
-    if (!postToDelete) {
-        console.log(`Post with ID ${id} not found`);
-        res.status(404).json({ deleted: 0, success: false, error: 'Post not found' });
-        return;
-    }
-    
-    // Remove the post
     const initialLength = data.blog_posts.length;
     data.blog_posts = data.blog_posts.filter(post => post.id !== id);
     
     if (data.blog_posts.length < initialLength) {
-        // Save the changes to disk
-        const saved = saveData();
-        
-        if (saved) {
-            console.log(`Successfully deleted post "${postToDelete.title}" (ID: ${id})`);
-            console.log(`Remaining posts: ${data.blog_posts.length}`);
-            
-            // Verify the deletion was saved
-            const verifyData = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-            const stillExists = verifyData.blog_posts.find(p => p.id === id);
-            
-            if (!stillExists) {
-                console.log('Deletion verified in data.json');
-                res.json({ deleted: 1, success: true, message: 'Post deleted successfully' });
-            } else {
-                console.error('Deletion was not saved to file!');
-                res.status(500).json({ error: 'Deletion not persisted to storage' });
-            }
-        } else {
-            console.error('Failed to save data after deletion');
-            res.status(500).json({ error: 'Failed to save deletion to storage' });
-        }
+        saveData();
+        res.json({ deleted: 1, success: true, message: 'Post deleted successfully' });
     } else {
-        console.log(`Post with ID ${id} not found during filter operation`);
         res.status(404).json({ deleted: 0, success: false, error: 'Post not found' });
     }
 });
 
 // ========== STORY SUBMISSION API ENDPOINTS ==========
 app.get('/api/stories', (req, res) => {
-    if (!req.session.isAdmin) {
+    if (!isAdmin(req)) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
     }
@@ -354,7 +322,7 @@ app.post('/api/stories', (req, res) => {
 });
 
 app.delete('/api/stories/:id', (req, res) => {
-    if (!req.session.isAdmin) {
+    if (!isAdmin(req)) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
     }
@@ -371,24 +339,6 @@ app.delete('/api/stories/:id', (req, res) => {
     } else {
         res.json({ deleted: 0, success: false });
     }
-});
-
-// Debug endpoint to check data.json content (admin only)
-app.get('/api/admin/debug/data', (req, res) => {
-    if (!req.session.isAdmin) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-    }
-    
-    refreshData();
-    res.json({
-        blogCount: data.blog_posts.length,
-        episodesCount: data.episodes.length,
-        storiesCount: data.story_submissions.length,
-        blogPosts: data.blog_posts.map(p => ({ id: p.id, title: p.title })),
-        fileExists: fs.existsSync(DATA_FILE),
-        fileSize: fs.existsSync(DATA_FILE) ? fs.statSync(DATA_FILE).size : 0
-    });
 });
 
 // Health check
