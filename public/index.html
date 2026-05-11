@@ -1,119 +1,1231 @@
-   // ========== API FUNCTIONS WITH CACHE BUSTING ==========
-   
-   async function loadEpisodes() {
-     try {
-       const timestamp = new Date().getTime();
-       const response = await fetch(`/api/episodes?t=${timestamp}`, {
-         cache: 'no-store',
-         headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
-       });
-       if (response.ok) {
-         episodes = await response.json();
-         renderPublicSite();
-         if (document.getElementById('adminEpisodesList')) renderAdminEpisodes();
-       } else {
-         console.error('Failed to load episodes');
-       }
-     } catch (error) {
-       console.error('Error loading episodes:', error);
-     }
-   }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>POD IN THE BOX</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #e9e6c2;
+      color: #2c3e2f;
+      line-height: 1.5;
+      scroll-behavior: smooth;
+    }
+    .container { max-width: 1280px; margin: 0 auto; padding: 0 28px; }
 
-   async function loadBlogPosts() {
-     try {
-       const timestamp = new Date().getTime();
-       const response = await fetch(`/api/blog?t=${timestamp}`, {
-         cache: 'no-store',
-         headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
-       });
-       
-       if (response.ok) {
-         blogPosts = await response.json();
-         console.log(`Loaded ${blogPosts.length} blog posts`);
-         renderPublicSite();
-         if (document.getElementById('adminBlogList') && document.getElementById('adminDashboardArea').style.display === 'block') {
-           renderAdminBlog();
-         }
-       } else {
-         console.error('Failed to load blog posts');
-       }
-     } catch (error) {
-       console.error('Error loading blog posts:', error);
-     }
-   }
+    /* navbar */
+    .navbar {
+      background: rgba(233, 230, 194, 0.96);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+      position: sticky;
+      top: 0;
+      z-index: 150;
+      border-bottom: 1px solid #d4cfaa;
+    }
+    .nav-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      padding: 14px 28px;
+      max-width: 1360px;
+      margin: 0 auto;
+    }
+    .logo-area { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+    .logo-icon {
+      background: #6b9080;
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      color: #e9e6c2;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+    .logo-text {
+      font-weight: 800;
+      font-size: 1.6rem;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #4a6b5e, #6b9080);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+    .nav-links { display: flex; gap: 28px; align-items: center; }
+    .nav-links a {
+      text-decoration: none;
+      font-weight: 600;
+      color: #4a5b4a;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .nav-links a:hover { color: #6b9080; }
+    .admin-badge-btn {
+      background: #6b9080;
+      color: #e9e6c2;
+      padding: 8px 20px;
+      border-radius: 40px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      border: none;
+      transition: 0.2s;
+    }
+    .admin-badge-btn:hover {
+      background: #557a6a;
+      transform: translateY(-1px);
+    }
 
-   async function loadStories() {
-     if (!adminToken) return;
-     
-     try {
-       const timestamp = new Date().getTime();
-       const response = await fetch(`/api/stories?t=${timestamp}`, {
-         cache: 'no-store',
-         headers: { 
-           'Cache-Control': 'no-cache', 
-           'Pragma': 'no-cache',
-           'X-Admin-Token': adminToken
-         }
-       });
-       if (response.ok) {
-         storySubmissions = await response.json();
-         if (document.getElementById('adminStoriesList')) renderAdminStories();
-       } else if (response.status === 401) {
-         console.log('Session expired, please login again');
-         logoutAndClose();
-       } else {
-         console.error('Failed to load stories');
-       }
-     } catch (error) {
-       console.error('Error loading stories:', error);
-     }
-   }
+    /* hero section */
+    .hero {
+      padding: 70px 0 56px;
+      text-align: center;
+      background: radial-gradient(circle at 20% 30%, rgba(107,144,128,0.08), transparent);
+    }
+    .hero h1 {
+      font-size: 3.2rem;
+      font-weight: 800;
+      background: linear-gradient(to right, #446b5c, #6b9080, #8aae9c);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      margin-bottom: 18px;
+    }
+    .hero p {
+      font-size: 1.2rem;
+      max-width: 680px;
+      margin: 0 auto 28px;
+      color: #4a5b4a;
+    }
+    .subscribe-buttons { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      background: #6b9080;
+      color: #e9e6c2;
+      border: none;
+      padding: 12px 32px;
+      font-weight: 700;
+      border-radius: 60px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      transition: 0.2s;
+    }
+    .btn-primary:hover {
+      background: #557a6a;
+      transform: translateY(-2px);
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1.5px solid #6b9080;
+      color: #6b9080;
+    }
+    .btn-outline:hover {
+      background: rgba(107,144,128,0.1);
+      transform: translateY(-2px);
+    }
 
-   async function forceRefreshAllData() {
-     console.log("Force refreshing all data...");
-     blogPosts = [];
-     episodes = [];
-     storySubmissions = [];
-     await loadEpisodes();
-     await loadBlogPosts();
-     if (adminToken && document.getElementById('adminStoriesList')) {
-       await loadStories();
-     }
-     console.log("Data refresh complete");
-   }
+    .section-title {
+      font-size: 1.9rem;
+      font-weight: 800;
+      margin: 56px 0 24px 0;
+      border-left: 6px solid #6b9080;
+      padding-left: 22px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #3a5c4f;
+    }
 
-   async function loadAllData() {
-     await loadEpisodes();
-     await loadBlogPosts();
-   }
+    /* episode cards */
+    .episode-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 32px;
+      margin-bottom: 48px;
+    }
+    .episode-card {
+      background: rgba(255, 250, 225, 0.9);
+      border-radius: 28px;
+      padding: 0;
+      overflow: hidden;
+      box-shadow: 0 12px 24px -14px rgba(0, 0, 0, 0.08);
+      border: 1px solid #d6cf9f;
+      transition: 0.25s;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+    }
+    .episode-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 24px 32px -16px rgba(0, 0, 0, 0.12);
+      border-color: #6b9080;
+    }
+    .episode-cover {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      background: #dcd6ae;
+    }
+    .episode-info { padding: 1.5rem; }
+    .episode-title {
+      font-weight: 800;
+      font-size: 1.35rem;
+      margin-bottom: 8px;
+      color: #2c4a3e;
+    }
+    .episode-desc {
+      color: #5a6e5a;
+      margin: 8px 0 12px;
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+    .episode-author {
+      font-size: 0.75rem;
+      color: #7b8e6e;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .listen-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #6b9080;
+      font-weight: 700;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
 
-   // Helper function for admin requests with cache busting
-   async function adminFetch(url, options = {}) {
-     const timestamp = new Date().getTime();
-     const separator = url.includes('?') ? '&' : '?';
-     const urlWithTimestamp = `${url}${separator}t=${timestamp}`;
-     
-     const headers = {
-       'Content-Type': 'application/json',
-       'Cache-Control': 'no-cache',
-       'Pragma': 'no-cache',
-       ...options.headers
-     };
-     
-     if (adminToken) {
-       headers['X-Admin-Token'] = adminToken;
-     }
-     
-     const response = await fetch(urlWithTimestamp, {
-       ...options,
-       cache: 'no-store',
-       headers
-     });
-     
-     if (response.status === 401) {
-       showToast("Session expired. Please login again.", true);
-       logoutAndClose();
-     }
-     
-     return response;
-   }
+    /* blog cards */
+    .blog-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 28px;
+      margin: 24px 0 56px;
+    }
+    .blog-card {
+      background: rgba(255, 250, 225, 0.9);
+      border-radius: 28px;
+      padding: 24px;
+      border: 1px solid #e0d9af;
+      transition: 0.2s;
+      cursor: pointer;
+    }
+    .blog-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 30px -14px rgba(0, 0, 0, 0.08);
+      border-color: #6b9080;
+    }
+    .blog-card-image {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      border-radius: 20px;
+      margin-bottom: 14px;
+      background: #dbd4a8;
+    }
+    .blog-card h3 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #2c4a3e;
+    }
+    .blog-author {
+      font-size: 0.7rem;
+      color: #7b8e6e;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .blog-date {
+      font-size: 0.75rem;
+      color: #7b8e6e;
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    /* Submit Story Section */
+    .story-section {
+      background: linear-gradient(135deg, rgba(107,144,128,0.1), rgba(107,144,128,0.05));
+      border-radius: 48px;
+      padding: 48px;
+      margin: 40px 0 60px;
+      border: 2px solid #d6cf9f;
+    }
+    .story-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: start;
+    }
+    .story-info h3 {
+      font-size: 2rem;
+      margin-bottom: 16px;
+      color: #3a5c4f;
+    }
+    .story-info p {
+      color: #5a6e5a;
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+    .story-features {
+      list-style: none;
+      margin-top: 24px;
+    }
+    .story-features li {
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #4a6b5e;
+    }
+    .story-features i {
+      color: #6b9080;
+      font-size: 1.2rem;
+    }
+    .story-form {
+      background: rgba(255, 252, 235, 0.9);
+      padding: 32px;
+      border-radius: 32px;
+      border: 1px solid #d6cf9f;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      font-weight: 700;
+      display: block;
+      margin-bottom: 8px;
+      color: #3a5c4f;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #cbc38b;
+      border-radius: 28px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      background: #fffef7;
+      transition: 0.2s;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #6b9080;
+      box-shadow: 0 0 0 2px rgba(107,144,128,0.2);
+    }
+    .story-submit-btn {
+      width: 100%;
+      background: #6b9080;
+      color: #e9e6c2;
+      border: none;
+      padding: 14px;
+      font-weight: 700;
+      border-radius: 60px;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: 0.2s;
+    }
+    .story-submit-btn:hover {
+      background: #557a6a;
+      transform: translateY(-2px);
+    }
+    .story-submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .toast-notification {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: #4a6b5e;
+      color: white;
+      padding: 16px 24px;
+      border-radius: 60px;
+      font-weight: 600;
+      z-index: 1000;
+      animation: slideIn 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    @keyframes slideIn {
+      from { transform: translateX(400px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @media (max-width: 900px) {
+      .story-grid { grid-template-columns: 1fr; gap: 32px; }
+      .story-section { padding: 32px; }
+    }
+    
+    footer {
+      text-align: center;
+      padding: 40px 0;
+      border-top: 1px solid #d6cf9f;
+      margin-top: 20px;
+      color: #5a705e;
+    }
+
+    /* admin modal */
+    .admin-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .admin-dashboard-container {
+      background: #e9e6c2;
+      border-radius: 40px;
+      width: 92%;
+      max-width: 1100px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 30px 50px rgba(0, 0, 0, 0.25);
+      padding: 28px 32px;
+      border: 1px solid #cbc38b;
+    }
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #cbc38b;
+      padding-bottom: 18px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+    .dashboard-header h2 {
+      font-size: 1.7rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #6b9080, #4a6b5e);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+    .close-dashboard {
+      background: #d6cf9f;
+      border: none;
+      padding: 8px 22px;
+      border-radius: 40px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #3a5c4f;
+    }
+    .admin-tabs {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 32px;
+      border-bottom: 1px solid #cbc38b;
+      padding-bottom: 12px;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 8px 20px;
+      cursor: pointer;
+      border-radius: 40px;
+      transition: 0.2s;
+      color: #4a5b4a;
+    }
+    .tab-btn.active {
+      background: #6b9080;
+      color: #e9e6c2;
+    }
+    .tab-pane { display: none; animation: fade 0.2s ease; }
+    .tab-pane.active-pane { display: block; }
+    @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    .form-card {
+      background: rgba(255, 252, 235, 0.8);
+      padding: 24px;
+      border-radius: 32px;
+      margin-bottom: 32px;
+      border: 1px solid #d6cf9f;
+    }
+    .form-group { margin-bottom: 20px; }
+    .form-group label {
+      font-weight: 700;
+      display: block;
+      margin-bottom: 8px;
+      color: #3a5c4f;
+    }
+    .form-group input, .form-group textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #cbc38b;
+      border-radius: 28px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      background: #fffef7;
+    }
+    .form-group input:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: #6b9080;
+      box-shadow: 0 0 0 2px rgba(107,144,128,0.2);
+    }
+    .upload-area { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+    .upload-btn {
+      background: #d6cf9f;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 40px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #3a5c4f;
+    }
+    .upload-btn:hover { background: #cbc38b; }
+    .image-preview-mini {
+      max-width: 100px;
+      max-height: 100px;
+      border-radius: 12px;
+      margin-top: 8px;
+      border: 2px solid #cbc38b;
+      object-fit: cover;
+    }
+
+    .rich-toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      background: #dfd9af;
+      padding: 10px 14px;
+      border-radius: 50px;
+      margin-bottom: 12px;
+    }
+    .tool-btn {
+      background: #fffef7;
+      border: 1px solid #cbc38b;
+      padding: 6px 12px;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #3a5c4f;
+    }
+    .tool-btn:hover { background: #e9e6c2; border-color: #6b9080; }
+    .rich-editor {
+      width: 100%;
+      min-height: 180px;
+      padding: 14px 18px;
+      border: 1px solid #cbc38b;
+      border-radius: 28px;
+      background: #fffef7;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+    .rich-editor:focus { outline: none; border-color: #6b9080; }
+
+    .item-list { display: flex; flex-direction: column; gap: 14px; margin-top: 20px; }
+    .list-item {
+      background: rgba(255, 252, 235, 0.8);
+      border-radius: 24px;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid #d6cf9f;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .btn-danger {
+      background: #c27e6e;
+      color: white;
+      border: none;
+      padding: 6px 16px;
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn-danger:hover { background: #ae6a5a; }
+    .btn-purple {
+      background: #6b9080;
+      color: #e9e6c2;
+      border: none;
+      padding: 10px 26px;
+      border-radius: 40px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-purple:hover { background: #557a6a; transform: translateY(-1px); }
+
+    .login-screen {
+      text-align: center;
+      padding: 20px;
+    }
+    .login-screen input {
+      width: 80%;
+      padding: 14px;
+      margin: 18px 0;
+      border-radius: 60px;
+      border: 1px solid #cbc38b;
+      background: #fffef7;
+    }
+    @media (max-width:700px) { .admin-dashboard-container { padding: 20px; } }
+
+    /* warning banner */
+    .warning-banner {
+      background: #fef3c7;
+      color: #92400e;
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-size: 12px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="navbar">
+  <div class="nav-container">
+    <div class="logo-area" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+      <div class="logo-icon"><i class="fas fa-microphone-alt"></i></div>
+      <span class="logo-text">POD IN THE BOX</span>
+    </div>
+    <div class="nav-links">
+      <a onclick="scrollToEpisodes()">Episodes</a>
+      <a onclick="scrollToBlog()">Blog</a>
+      <a onclick="scrollToStory()">Submit Story</a>
+      <div class="admin-badge-btn" onclick="openAdminDashboard()"><i class="fas fa-user-shield"></i> Admin Panel</div>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="container">
+    <div class="hero">
+      <h1>New box. New stories. No limits</h1>
+      <p>Each episode, we open a new box. What's inside? Stories, conversations, and perspectives you (maybe) haven't heard before.</p>
+      <div class="subscribe-buttons">
+        <button class="btn-primary" onclick="window.open('https://open.spotify.com/user/31driympxqfybpzkbpfs4jmidpem','_blank')"><i class="fab fa-spotify"></i> Spotify</button>
+        <button class="btn-primary btn-outline" onclick="window.open('https://open.noice.id/user/38d1b86c-2232-4482-921b-af809c95530c','_blank')"><i class="fas fa-headphones"></i> Noice</button>
+        <button class="btn-primary btn-outline" onclick="window.open('https://www.tiktok.com/@podinthebox_official','_blank')"><i class="fa-brands fa-tiktok"></i> TikTok</button>
+      </div>
+    </div>
+    
+    <!-- Submit Your Story Section -->
+    <div id="story-section" class="story-section">
+      <div class="story-grid">
+        <div class="story-info">
+          <h3><i class="fas fa-pen-fancy"></i> Submit Your Story</h3>
+          <p>Have an amazing story to share? We'd love to hear from you! Your story might be featured in our next episode or blog post.</p>
+          <ul class="story-features">
+            <li><i class="fas fa-check-circle"></i> Get featured on our podcast</li>
+            <li><i class="fas fa-check-circle"></i> Share your unique perspective</li>
+            <li><i class="fas fa-check-circle"></i> Inspire our community</li>
+            <li><i class="fas fa-check-circle"></i> We'll credit you as the author</li>
+          </ul>
+        </div>
+        <div class="story-form">
+          <form id="storyForm">
+            <div class="form-group">
+              <label><i class="fas fa-user"></i> Your Name *</label>
+              <input type="text" id="storyName" required placeholder="e.g., John Doe">
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-envelope"></i> Email Address *</label>
+              <input type="email" id="storyEmail" required placeholder="you@example.com">
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-tag"></i> Story Category</label>
+              <select id="storyCategory">
+                <option value="Personal Experience">Personal Experience</option>
+                <option value="Inspirational">Inspirational</option>
+                <option value="Funny/Memorable">Funny/Memorable</option>
+                <option value="Life Lesson">Life Lesson</option>
+                <option value="Creative Writing">Creative Writing</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-heading"></i> Story Title *</label>
+              <input type="text" id="storyTitle" required placeholder="A catchy title for your story">
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-align-left"></i> Your Story *</label>
+              <textarea id="storyContent" rows="6" required placeholder="Share your story here... (minimum 50 characters)"></textarea>
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-check-square"></i> I agree to the terms</label>
+              <label style="display: flex; align-items: center; gap: 10px; font-weight: normal;">
+                <input type="checkbox" id="storyConsent" required> I confirm that this is my original story and I give permission for POD IN THE BOX to share it (with credit)
+              </label>
+            </div>
+            <button type="submit" class="story-submit-btn" id="submitStoryBtn">
+              <i class="fas fa-paper-plane"></i> Submit Your Story
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <div id="episodes-section"><div class="section-title"><i class="fas fa-headphones"></i> Latest episodes</div><div id="episodesContainer" class="episode-grid"></div></div>
+    <div id="blog-section"><div class="section-title"><i class="fas fa-blog"></i> From the blog</div><div id="visitorBlogContainer" class="blog-grid"></div></div>
+  </div>
+</main>
+<footer><div class="container"><p>© 2026 POD IN THE BOX — made with love and machines <i class="fas fa-podcast"></i> | Pod in the Box</p><p style="margin-top: 12px; font-size: 0.85rem;"><i class="fas fa-phone"></i> Contact: podinthepodcast.official@hotmail.com</p></div></footer>
+
+<!-- ADMIN DASHBOARD -->
+<div id="adminModal" class="admin-overlay">
+  <div class="admin-dashboard-container">
+    <div id="adminLoginArea" class="login-screen">
+      <i class="fas fa-lock" style="font-size:48px;color:#6b9080;"></i><h2>Admin Access</h2>
+      <input type="password" id="adminPasswordInput" placeholder="Password">
+      <button class="btn-purple" onclick="authenticateAdmin()">Login</button>
+      <button onclick="closeAdminDashboard()" style="margin-left:12px;background:#d6cf9f;border:none;padding:10px 20px;border-radius:40px;">Cancel</button>
+    </div>
+    <div id="adminDashboardArea" style="display:none;">
+      <div class="dashboard-header"><h2><i class="fas fa-crown"></i> POD IN THE BOX CMS</h2><button class="close-dashboard" onclick="logoutAndClose()"><i class="fas fa-sign-out-alt"></i> Logout</button></div>
+      
+      <div class="warning-banner">
+        <i class="fas fa-info-circle"></i> Tip: For best results, use small images (under 500KB) or use image URLs from the web!
+      </div>
+      
+      <div class="admin-tabs"><button class="tab-btn active" data-tab="episodesTab">🎙️ Episodes</button><button class="tab-btn" data-tab="blogTab">📝 Blog Manager</button><button class="tab-btn" data-tab="storiesTab">📥 Story Submissions</button></div>
+      
+      <!-- EPISODES TAB -->
+      <div id="episodesTab" class="tab-pane active-pane">
+        <div class="form-card">
+          <h3>➕ Add New Episode</h3>
+          <div class="form-group"><label>Cover Image</label>
+            <div class="upload-area">
+              <input type="file" id="episodeImageUpload" accept="image/*" style="display:none;">
+              <button type="button" class="upload-btn" onclick="document.getElementById('episodeImageUpload').click()"><i class="fas fa-upload"></i> Upload Image</button>
+              <button type="button" class="upload-btn" onclick="clearEpisodeImagePreview()"><i class="fas fa-times"></i> Clear</button>
+            </div>
+            <input type="text" id="newEpCover" placeholder="Or enter image URL (recommended for large images)" style="margin-top:10px;">
+            <div id="episodeImagePreviewArea"></div>
+          </div>
+          <div class="form-group"><label>Episode Title</label><input type="text" id="newEpTitle" placeholder="S2E5: The Future of Creativity"></div>
+          <div class="form-group"><label>Author/Host Name</label><input type="text" id="newEpAuthor" placeholder="e.g., John Doe, Sarah Smith"></div>
+          <div class="form-group"><label>Description</label><textarea id="newEpDesc" rows="2" placeholder="Short description..."></textarea></div>
+          <div class="form-group"><label>Listen Link</label><input type="url" id="newEpLink" placeholder="https://open.spotify.com/... or https://www.noice.com/..."></div>
+          <button class="btn-purple" onclick="addFullEpisode()"><i class="fas fa-plus-circle"></i> Publish Episode</button>
+        </div>
+        <h3>📻 Existing Episodes</h3>
+        <div id="adminEpisodesList" class="item-list"></div>
+      </div>
+      
+      <!-- BLOG TAB -->
+      <div id="blogTab" class="tab-pane">
+        <div class="form-card">
+          <h3>✍️ Create Blog Post</h3>
+          <div class="form-group"><label>Post Title</label><input type="text" id="newBlogTitle" placeholder="Catchy headline"></div>
+          <div class="form-group"><label>Author Name</label><input type="text" id="newBlogAuthor" placeholder="e.g., John Doe"></div>
+          <div class="form-group"><label>Cover Image</label>
+            <div class="upload-area">
+              <input type="file" id="blogImageUpload" accept="image/*" style="display:none;">
+              <button type="button" class="upload-btn" onclick="document.getElementById('blogImageUpload').click()"><i class="fas fa-upload"></i> Upload Cover</button>
+              <button type="button" class="upload-btn" onclick="clearBlogImagePreview()"><i class="fas fa-times"></i> Clear</button>
+            </div>
+            <input type="text" id="blogImageUrl" placeholder="Or image URL (recommended)" style="margin-top:10px;">
+            <div id="blogImagePreviewArea"></div>
+          </div>
+          <div class="form-group"><label>Rich Content</label>
+            <div class="rich-toolbar">
+              <button type="button" class="tool-btn" onclick="formatDoc('bold')"><i class="fas fa-bold"></i> B</button>
+              <button type="button" class="tool-btn" onclick="formatDoc('italic')"><i class="fas fa-italic"></i> I</button>
+              <button type="button" class="tool-btn" onclick="formatDoc('underline')"><i class="fas fa-underline"></i> U</button>
+              <button type="button" class="tool-btn" onclick="formatDoc('insertUnorderedList')"><i class="fas fa-list-ul"></i> List</button>
+              <button type="button" class="tool-btn" onclick="createLink()"><i class="fas fa-link"></i> Link</button>
+              <button type="button" class="tool-btn" onclick="insertImageFromUrl()"><i class="fas fa-image"></i> Img</button>
+              <button type="button" class="tool-btn" onclick="embedVideo()"><i class="fab fa-youtube"></i> Embed</button>
+            </div>
+            <div id="richEditor" contenteditable="true" class="rich-editor"></div>
+          </div>
+          <button class="btn-purple" onclick="publishBlogPost()"><i class="fas fa-cloud-upload-alt"></i> Publish Post</button>
+        </div>
+        <h3>📚 Manage Blog Posts</h3>
+        <div id="adminBlogList" class="item-list"></div>
+      </div>
+      
+      <!-- STORY SUBMISSIONS TAB -->
+      <div id="storiesTab" class="tab-pane">
+        <h3><i class="fas fa-inbox"></i> Story Submissions</h3>
+        <div id="adminStoriesList" class="item-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ========== DATA STORAGE ==========
+  let episodes = [];
+  let blogPosts = [];
+  let storySubmissions = [];
+
+  let uploadedEpisodeImageData = null;
+  let uploadedBlogImageData = null;
+  
+  // Admin token for authentication
+  let adminToken = null;
+
+  // ========== API FUNCTIONS WITH CACHE BUSTING ==========
+  
+  async function loadEpisodes() {
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/episodes?t=${timestamp}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+      });
+      if (response.ok) {
+        episodes = await response.json();
+        renderPublicSite();
+        if (document.getElementById('adminEpisodesList')) renderAdminEpisodes();
+      } else {
+        console.error('Failed to load episodes');
+      }
+    } catch (error) {
+      console.error('Error loading episodes:', error);
+    }
+  }
+
+  async function loadBlogPosts() {
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/blog?t=${timestamp}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+      });
+      
+      if (response.ok) {
+        blogPosts = await response.json();
+        console.log(`Loaded ${blogPosts.length} blog posts`);
+        renderPublicSite();
+        if (document.getElementById('adminBlogList') && document.getElementById('adminDashboardArea').style.display === 'block') {
+          renderAdminBlog();
+        }
+      } else {
+        console.error('Failed to load blog posts');
+      }
+    } catch (error) {
+      console.error('Error loading blog posts:', error);
+    }
+  }
+
+  async function loadStories() {
+    if (!adminToken) return;
+    
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/stories?t=${timestamp}`, {
+        cache: 'no-store',
+        headers: { 
+          'Cache-Control': 'no-cache', 
+          'Pragma': 'no-cache',
+          'X-Admin-Token': adminToken
+        }
+      });
+      if (response.ok) {
+        storySubmissions = await response.json();
+        if (document.getElementById('adminStoriesList')) renderAdminStories();
+      } else if (response.status === 401) {
+        console.log('Session expired, please login again');
+        logoutAndClose();
+      } else {
+        console.error('Failed to load stories');
+      }
+    } catch (error) {
+      console.error('Error loading stories:', error);
+    }
+  }
+
+  async function forceRefreshAllData() {
+    console.log("Force refreshing all data...");
+    blogPosts = [];
+    episodes = [];
+    storySubmissions = [];
+    await loadEpisodes();
+    await loadBlogPosts();
+    if (adminToken && document.getElementById('adminStoriesList')) {
+      await loadStories();
+    }
+    console.log("Data refresh complete");
+  }
+
+  async function loadAllData() {
+    await loadEpisodes();
+    await loadBlogPosts();
+  }
+
+  // Helper function for admin requests with cache busting
+  async function adminFetch(url, options = {}) {
+    const timestamp = new Date().getTime();
+    const separator = url.includes('?') ? '&' : '?';
+    const urlWithTimestamp = `${url}${separator}t=${timestamp}`;
+    
+    const headers = {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+      ...options.headers
+    };
+    
+    if (adminToken) {
+      headers['X-Admin-Token'] = adminToken;
+    }
+    
+    const response = await fetch(urlWithTimestamp, {
+      ...options,
+      cache: 'no-store',
+      headers
+    });
+    
+    if (response.status === 401) {
+      showToast("Session expired. Please login again.", true);
+      logoutAndClose();
+    }
+    
+    return response;
+  }
+
+  function escapeHtml(text) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return text.replace(/[&<>"']/g, m => map[m]);
+  }
+
+  function renderPublicSite() {
+    const epContainer = document.getElementById('episodesContainer');
+    if (epContainer) {
+      if (episodes.length === 0) {
+        epContainer.innerHTML = '<div style="text-align:center; padding:40px;">No episodes yet. Add some in the admin panel!</div>';
+      } else {
+        epContainer.innerHTML = episodes.map(ep => `
+          <div class="episode-card" onclick="window.open('${escapeHtml(ep.link)}', '_blank')">
+            <img class="episode-cover" src="${escapeHtml(ep.cover)}" onerror="this.src='https://picsum.photos/id/1/400/200'">
+            <div class="episode-info">
+              <div class="episode-title">${escapeHtml(ep.title)}</div>
+              <div class="episode-author"><i class="fas fa-user-circle"></i> ${escapeHtml(ep.author) || 'Unknown Host'}</div>
+              <div class="episode-desc">${escapeHtml(ep.description)}</div>
+              <div class="listen-link"><i class="fas fa-play-circle"></i> Listen now →</div>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+    const blogContainer = document.getElementById('visitorBlogContainer');
+    if (blogContainer) {
+      if (blogPosts.length === 0) {
+        blogContainer.innerHTML = '<div style="text-align:center; padding:40px;">No blog posts yet. Add some in the admin panel!</div>';
+      } else {
+        blogContainer.innerHTML = blogPosts.slice().reverse().map(post => `
+          <div class="blog-card" onclick="viewFullPost(${post.id})">
+            ${post.image_url ? `<img class="blog-card-image" src="${escapeHtml(post.image_url)}" onerror="this.style.display='none'">` : ''}
+            <h3>${escapeHtml(post.title)}</h3>
+            <div class="blog-author"><i class="fas fa-pen-fancy"></i> ${escapeHtml(post.author) || 'Unknown Author'}</div>
+            <div class="blog-date"><i class="far fa-calendar-alt"></i> ${escapeHtml(post.date)}</div>
+          </div>
+        `).join('');
+      }
+    }
+  }
+
+  function viewFullPost(id) {
+    const post = blogPosts.find(p => p.id === id);
+    if (post) {
+      const win = window.open();
+      win.document.write(`<html><head><title>${escapeHtml(post.title)}</title><style>body{font-family:'Inter',sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6;} img{max-width:100%;border-radius:8px;margin:20px 0;}</style></head><body><h1>${escapeHtml(post.title)}</h1><p><strong>By ${escapeHtml(post.author)}</strong> | ${escapeHtml(post.date)}</p>${post.content}</body></html>`);
+      win.document.close();
+    }
+  }
+
+  async function authenticateAdmin() {
+    const password = document.getElementById('adminPasswordInput').value;
+    try {
+      const response = await adminFetch('/api/admin/authenticate', {
+        method: 'POST',
+        body: JSON.stringify({ password })
+      });
+      const data = await response.json();
+      if (data.success) {
+        adminToken = data.token;
+        document.getElementById('adminLoginArea').style.display = 'none';
+        document.getElementById('adminDashboardArea').style.display = 'block';
+        await loadAllData();
+        await loadStories();
+        renderAdminEpisodes();
+        renderAdminBlog();
+        renderAdminStories();
+      } else {
+        showToast(data.message, true);
+      }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      showToast('Error logging in', true);
+    }
+  }
+
+  function openAdminDashboard() {
+    document.getElementById('adminModal').style.display = 'flex';
+  }
+
+  function closeAdminDashboard() {
+    document.getElementById('adminModal').style.display = 'none';
+  }
+
+  function logoutAndClose() {
+    adminToken = null;
+    document.getElementById('adminLoginArea').style.display = 'block';
+    document.getElementById('adminDashboardArea').style.display = 'none';
+    document.getElementById('adminPasswordInput').value = '';
+    closeAdminDashboard();
+  }
+
+  function showToast(message, isError = false) {
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.style.background = isError ? '#d9534f' : '#4a6b5e';
+    toast.innerHTML = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  }
+
+  document.getElementById('storyForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('storyName').value;
+    const email = document.getElementById('storyEmail').value;
+    const category = document.getElementById('storyCategory').value;
+    const title = document.getElementById('storyTitle').value;
+    const content = document.getElementById('storyContent').value;
+    
+    try {
+      const response = await fetch('/api/stories?t=' + Date.now(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, category, title, content })
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast('Story submitted! Thanks for sharing! 🎉');
+        document.getElementById('storyForm').reset();
+      } else {
+        showToast('Error submitting story', true);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      showToast('Error submitting story', true);
+    }
+  });
+
+  function renderAdminEpisodes() {
+    const list = document.getElementById('adminEpisodesList');
+    if (!list) return;
+    list.innerHTML = episodes.map(ep => `
+      <div class="list-item">
+        <div><strong>${escapeHtml(ep.title)}</strong><br><small>${escapeHtml(ep.author)}</small></div>
+        <button class="btn-danger" onclick="deleteEpisode(${ep.id})">Delete</button>
+      </div>
+    `).join('');
+  }
+
+  function renderAdminBlog() {
+    const list = document.getElementById('adminBlogList');
+    if (!list) return;
+    list.innerHTML = blogPosts.map(post => `
+      <div class="list-item">
+        <div><strong>${escapeHtml(post.title)}</strong><br><small>${escapeHtml(post.author)} | ${escapeHtml(post.date)}</small></div>
+        <button class="btn-danger" onclick="deleteBlogPost(${post.id})">Delete</button>
+      </div>
+    `).join('');
+  }
+
+  function renderAdminStories() {
+    const list = document.getElementById('adminStoriesList');
+    if (!list) return;
+    list.innerHTML = storySubmissions.map(story => `
+      <div class="list-item">
+        <div><strong>${escapeHtml(story.title)}</strong><br><small>From ${escapeHtml(story.name)} (${escapeHtml(story.email)}) | ${escapeHtml(story.category)}</small><br><em>${escapeHtml(story.content.substring(0, 100))}...</em></div>
+        <button class="btn-danger" onclick="deleteStory(${story.id})">Delete</button>
+      </div>
+    `).join('');
+  }
+
+  async function addFullEpisode() {
+    let cover = document.getElementById('newEpCover').value.trim() || "https://picsum.photos/id/100/400/200";
+    const title = document.getElementById('newEpTitle').value.trim();
+    const author = document.getElementById('newEpAuthor').value.trim() || "Anonymous Host";
+    const desc = document.getElementById('newEpDesc').value.trim();
+    const link = document.getElementById('newEpLink').value.trim();
+    
+    if (!title || !desc || !link) { showToast("Please fill all fields", true); return; }
+    
+    try {
+      const response = await adminFetch('/api/episodes', {
+        method: 'POST',
+        body: JSON.stringify({ cover, title, author, description: desc, link })
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast('Episode published!');
+        await loadEpisodes();
+        document.getElementById('newEpTitle').value = '';
+        document.getElementById('newEpAuthor').value = '';
+        document.getElementById('newEpDesc').value = '';
+        document.getElementById('newEpLink').value = '';
+        clearEpisodeImagePreview();
+      }
+    } catch (error) {
+      showToast('Error publishing episode', true);
+    }
+  }
+
+  async function deleteEpisode(id) {
+    if (confirm('Delete this episode?')) {
+      try {
+        const response = await adminFetch(`/api/episodes/${id}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (data.success) {
+          showToast('Episode deleted');
+          await loadEpisodes();
+        }
+      } catch (error) {
+        showToast('Error deleting episode', true);
+      }
+    }
+  }
+
+  async function publishBlogPost() {
+    const title = document.getElementById('newBlogTitle').value.trim();
+    const author = document.getElementById('newBlogAuthor').value.trim() || "Anonymous";
+    let image_url = document.getElementById('blogImageUrl').value.trim();
+    const content = document.getElementById('richEditor').innerHTML;
+    
+    if (!title || !content) { showToast("Please fill all fields", true); return; }
+    if (!image_url && !uploadedBlogImageData) image_url = "https://picsum.photos/id/101/400/200";
+    if (uploadedBlogImageData) image_url = uploadedBlogImageData;
+    
+    try {
+      const response = await adminFetch('/api/blog', {
+        method: 'POST',
+        body: JSON.stringify({ title, author, image_url, content })
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast('Blog post published!');
+        await loadBlogPosts();
+        document.getElementById('newBlogTitle').value = '';
+        document.getElementById('newBlogAuthor').value = '';
+        document.getElementById('richEditor').innerHTML = '';
+        clearBlogImagePreview();
+      }
+    } catch (error) {
+      showToast('Error publishing blog post', true);
+    }
+  }
+
+  async function deleteBlogPost(id) {
+    if (confirm('Delete this blog post?')) {
+      try {
+        const response = await adminFetch(`/api/blog/${id}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (data.success) {
+          showToast('Blog post deleted');
+          await loadBlogPosts();
+        }
+      } catch (error) {
+        showToast('Error deleting blog post', true);
+      }
+    }
+  }
+
+  async function deleteStory(id) {
+    if (confirm('Delete this story?')) {
+      try {
+        const response = await adminFetch(`/api/stories/${id}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (data.success) {
+          showToast('Story deleted');
+          await loadStories();
+        }
+      } catch (error) {
+        showToast('Error deleting story', true);
+      }
+    }
+  }
+
+  function formatDoc(cmd) { document.execCommand(cmd, false, null); }
+  function createLink() { const url = prompt('Enter URL:'); if (url) document.execCommand('createLink', false, url); }
+  function insertImageFromUrl() { const url = prompt('Enter image URL:'); if (url) document.execCommand('insertImage', false, url); }
+  function embedVideo() { const url = prompt('Enter YouTube URL:'); if (url) { const videoId = url.split('v=')[1]; document.execCommand('insertHTML', false, `<iframe width="100%" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>`); } }
+
+  document.getElementById('episodeImageUpload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      if (file.size > 500 * 1024) alert("⚠️ Image is larger than 500KB. Use smaller image or URL instead.");
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        uploadedEpisodeImageData = ev.target.result;
+        document.getElementById('episodeImagePreviewArea').innerHTML = `<img src="${uploadedEpisodeImageData}" class="image-preview-mini">`;
+        document.getElementById('newEpCover').value = '';
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  function clearEpisodeImagePreview() { uploadedEpisodeImageData = null; document.getElementById('episodeImagePreviewArea').innerHTML = ''; document.getElementById('episodeImageUpload').value = ''; }
+
+  document.getElementById('blogImageUpload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      if (file.size > 500 * 1024) alert("⚠️ Image is larger than 500KB.");
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        uploadedBlogImageData = ev.target.result;
+        document.getElementById('blogImagePreviewArea').innerHTML = `<img src="${uploadedBlogImageData}" class="image-preview-mini">`;
+        document.getElementById('blogImageUrl').value = '';
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  function clearBlogImagePreview() { uploadedBlogImageData = null; document.getElementById('blogImagePreviewArea').innerHTML = ''; document.getElementById('blogImageUpload').value = ''; }
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active-pane'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(btn.dataset.tab).classList.add('active-pane');
+      btn.classList.add('active');
+    });
+  });
+
+  function scrollToEpisodes() { document.getElementById('episodes-section').scrollIntoView({ behavior: 'smooth' }); }
+  function scrollToBlog() { document.getElementById('blog-section').scrollIntoView({ behavior: 'smooth' }); }
+  function scrollToStory() { document.getElementById('story-section').scrollIntoView({ behavior: 'smooth' }); }
+
+  // Load data on page load
+  window.addEventListener('load', loadAllData);
+</script>
+</body>
+</html>
