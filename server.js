@@ -23,75 +23,63 @@ function generateToken() {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
 
-// ========== DATA STORAGE (Using Vercel KV) ==========
+// ========== DATA STORAGE (Using Vercel Blob) ==========
 let data = {
     episodes: [],
     blog_posts: [],
     story_submissions: []
 };
 
-// Check if we're using Vercel KV or in-memory storage
-const USE_KV = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN;
+// Check if we're using Vercel Blob or in-memory storage
+const USE_BLOB = process.env.BLOB_READ_WRITE_TOKEN;
 
-// KV helper functions
-async function getDataFromKV() {
-    if (!USE_KV) return null;
+// Blob helper functions
+async function getDataFromBlob() {
+    if (!USE_BLOB) return null;
     
     try {
-        const response = await fetch(`${process.env.KV_REST_API_URL}/get/podinthebox_data`, {
-            headers: {
-                'Authorization': `Bearer ${process.env.KV_REST_API_TOKEN}`
-            }
-        });
+        const { list } = await import('@vercel/blob');
+        const blobs = await list({ prefix: 'podinthebox_data' });
         
-        if (response.ok) {
-            const json = await response.json();
-            return json.result ? JSON.parse(json.result) : null;
+        if (blobs.blobs.length > 0) {
+            const response = await fetch(blobs.blobs[0].url);
+            const jsonData = await response.json();
+            return jsonData;
         }
     } catch (error) {
-        console.error('Error reading from KV:', error);
+        console.error('Error reading from Blob:', error);
     }
     return null;
 }
 
-async function saveDataToKV(dataObj) {
-    if (!USE_KV) return true;
+async function saveDataToBlob(dataObj) {
+    if (!USE_BLOB) return true;
     
     try {
-        const response = await fetch(`${process.env.KV_REST_API_URL}/set/podinthebox_data`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${process.env.KV_REST_API_TOKEN}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                'podinthebox_data': JSON.stringify(dataObj)
-            })
+        const { put } = await import('@vercel/blob');
+        await put('podinthebox_data', JSON.stringify(dataObj), {
+            access: 'private',
+            contentType: 'application/json'
         });
-        
-        if (!response.ok) {
-            console.error('Error saving to KV:', response.status);
-            return false;
-        }
         return true;
     } catch (error) {
-        console.error('Error saving to KV:', error);
+        console.error('Error saving to Blob:', error);
         return false;
     }
 }
 
 // Initialize data
 async function initData() {
-    if (USE_KV) {
-        const kvData = await getDataFromKV();
-        if (kvData) {
-            data = kvData;
-            console.log('Data loaded from KV');
+    if (USE_BLOB) {
+        const blobData = await getDataFromBlob();
+        if (blobData) {
+            data = blobData;
+            console.log('Data loaded from Blob');
             return;
         }
     }
     
-    // Use initial data if KV is empty or not available
+    // Use initial data if Blob is empty or not available
     data = {
         episodes: [
             {
@@ -135,11 +123,11 @@ async function ensureDataLoaded(req, res, next) {
         dataInitialized = true;
     }
     
-    // Refresh data from KV on each request
-    if (USE_KV) {
-        const kvData = await getDataFromKV();
-        if (kvData) {
-            data = kvData;
+    // Refresh data from Blob on each request
+    if (USE_BLOB) {
+        const blobData = await getDataFromBlob();
+        if (blobData) {
+            data = blobData;
         }
     }
     
@@ -217,7 +205,7 @@ app.post('/api/episodes', async (req, res) => {
     
     data.episodes.push(newEpisode);
     
-    if (await saveDataToKV(data)) {
+    if (await saveDataToBlob(data)) {
         res.json({ id: newEpisode.id, success: true });
     } else {
         res.status(500).json({ error: 'Failed to save data' });
@@ -235,7 +223,7 @@ app.delete('/api/episodes/:id', async (req, res) => {
     data.episodes = data.episodes.filter(ep => ep.id !== id);
     
     if (data.episodes.length < initialLength) {
-        await saveDataToKV(data);
+        await saveDataToBlob(data);
         res.json({ deleted: 1, success: true });
     } else {
         res.status(404).json({ deleted: 0, success: false, error: 'Episode not found' });
@@ -282,7 +270,7 @@ app.post('/api/blog', async (req, res) => {
     
     data.blog_posts.push(newPost);
     
-    if (await saveDataToKV(data)) {
+    if (await saveDataToBlob(data)) {
         res.json({ id: newPost.id, success: true });
     } else {
         res.status(500).json({ error: 'Failed to save data' });
@@ -306,7 +294,7 @@ app.delete('/api/blog/:id', async (req, res) => {
     data.blog_posts = data.blog_posts.filter(post => post.id !== id);
     
     if (data.blog_posts.length < initialLength) {
-        await saveDataToKV(data);
+        await saveDataToBlob(data);
         res.json({ deleted: 1, success: true, message: 'Post deleted successfully' });
     } else {
         res.status(404).json({ deleted: 0, success: false, error: 'Post not found' });
@@ -338,7 +326,7 @@ app.post('/api/stories', async (req, res) => {
     };
     
     data.story_submissions.push(newStory);
-    await saveDataToKV(data);
+    await saveDataToBlob(data);
     res.json({ id: newStory.id, success: true });
 });
 
@@ -353,7 +341,7 @@ app.delete('/api/stories/:id', async (req, res) => {
     data.story_submissions = data.story_submissions.filter(story => story.id !== id);
     
     if (data.story_submissions.length < initialLength) {
-        await saveDataToKV(data);
+        await saveDataToBlob(data);
         res.json({ deleted: 1, success: true });
     } else {
         res.json({ deleted: 0, success: false });
