@@ -4,11 +4,12 @@
   "description": "Podcast website with CMS",
   "main": "server.js",
   "scripts": {
-    "vercel-build": "echo Hello"
+    "start": "node server.js",
+    "vercel-build": "echo Build complete"
   },
   "dependencies": {
     "dotenv": "^16.3.1",
-    "express": "^4.22.1",
+    "express": "^4.21.0",
     "@vercel/blob": "^0.21.0"
   }
 }
