@@ -1,6 +1,5 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
@@ -24,90 +23,130 @@ function generateToken() {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
 
-// ========== DATA STORAGE ==========
-const DATA_FILE = path.join(__dirname, 'data.json');
-
+// ========== DATA STORAGE (Using Vercel KV) ==========
 let data = {
     episodes: [],
     blog_posts: [],
     story_submissions: []
 };
 
-function initDataFile() {
-    if (!fs.existsSync(DATA_FILE)) {
-        const initialData = {
-            episodes: [
-                {
-                    id: 1,
-                    cover: "https://picsum.photos/id/100/400/200",
-                    title: "Welcome to Pod in the Box",
-                    author: "Pod Host",
-                    description: "Our first episode! Welcome to the podcast.",
-                    link: "https://open.spotify.com/",
-                    created_at: new Date().toISOString()
-                }
-            ],
-            blog_posts: [
-                {
-                    id: 1,
-                    title: "Welcome to Our Blog",
-                    author: "Admin",
-                    image_url: "https://picsum.photos/id/101/400/200",
-                    content: "<p>Welcome to the Pod in the Box blog! Stay tuned for amazing content.</p>",
-                    date: new Date().toLocaleDateString(),
-                    created_at: new Date().toISOString()
-                }
-            ],
-            story_submissions: []
-        };
-        fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
-        return initialData;
-    }
+// Check if we're using Vercel KV or in-memory storage
+const USE_KV = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN;
+
+// KV helper functions
+async function getDataFromKV() {
+    if (!USE_KV) return null;
     
     try {
-        const rawData = fs.readFileSync(DATA_FILE, 'utf8');
-        return JSON.parse(rawData);
+        const response = await fetch(`${process.env.KV_REST_API_URL}/get/podinthebox_data`, {
+            headers: {
+                'Authorization': `Bearer ${process.env.KV_REST_API_TOKEN}`
+            }
+        });
+        
+        if (response.ok) {
+            const json = await response.json();
+            return json.result ? JSON.parse(json.result) : null;
+        }
     } catch (error) {
-        console.error('Error reading data file:', error);
-        return null;
+        console.error('Error reading from KV:', error);
     }
+    return null;
 }
 
-function loadData() {
-    const loadedData = initDataFile();
-    if (loadedData) {
-        data = loadedData;
-        console.log('Data loaded successfully');
-    }
-}
-
-function saveData() {
+async function saveDataToKV(dataObj) {
+    if (!USE_KV) return true;
+    
     try {
-        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-        console.log('Data saved successfully');
+        const response = await fetch(`${process.env.KV_REST_API_URL}/set/podinthebox_data`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.KV_REST_API_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                'podinthebox_data': JSON.stringify(dataObj)
+            })
+        });
+        
+        if (!response.ok) {
+            console.error('Error saving to KV:', response.status);
+            return false;
+        }
         return true;
     } catch (error) {
-        console.error('Error saving data:', error);
+        console.error('Error saving to KV:', error);
         return false;
     }
 }
+
+// Initialize data
+async function initData() {
+    if (USE_KV) {
+        const kvData = await getDataFromKV();
+        if (kvData) {
+            data = kvData;
+            console.log('Data loaded from KV');
+            return;
+        }
+    }
+    
+    // Use initial data if KV is empty or not available
+    data = {
+        episodes: [
+            {
+                id: 1,
+                cover: "https://picsum.photos/id/100/400/200",
+                title: "Welcome to Pod in the Box",
+                author: "Pod Host",
+                description: "Our first episode! Welcome to the podcast.",
+                link: "https://open.spotify.com/",
+                created_at: new Date().toISOString()
+            }
+        ],
+        blog_posts: [
+            {
+                id: 1,
+                title: "Welcome to Our Blog",
+                author: "Admin",
+                image_url: "https://picsum.photos/id/101/400/200",
+                content: "<p>Welcome to the Pod in the Box blog! Stay tuned for amazing content.</p>",
+                date: new Date().toLocaleDateString(),
+                created_at: new Date().toISOString()
+            }
+        ],
+        story_submissions: []
+    };
+    
+    console.log('Data initialized with defaults');
+}
+
+// Call init when server starts (only for first request or cold start)
+let dataInitialized = false;
 
 function getNextId(items) {
     return items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
 }
 
-function refreshData() {
-    if (fs.existsSync(DATA_FILE)) {
-        try {
-            const rawData = fs.readFileSync(DATA_FILE, 'utf8');
-            data = JSON.parse(rawData);
-        } catch (error) {
-            console.error('Error refreshing data:', error);
+// Middleware to refresh data and init if needed
+async function ensureDataLoaded(req, res, next) {
+    if (!dataInitialized) {
+        await initData();
+        dataInitialized = true;
+    }
+    
+    // Refresh data from KV on each request
+    if (USE_KV) {
+        const kvData = await getDataFromKV();
+        if (kvData) {
+            data = kvData;
         }
     }
+    
+    next();
 }
 
-loadData();
+app.use(ensureDataLoaded);
 
 // Middleware to check admin authentication
 function isAdmin(req) {
@@ -152,8 +191,6 @@ app.get('/api/admin/check', (req, res) => {
 
 // ========== EPISODE API ENDPOINTS ==========
 app.get('/api/episodes', (req, res) => {
-    refreshData();
-    
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
@@ -161,13 +198,11 @@ app.get('/api/episodes', (req, res) => {
     res.json(data.episodes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
 });
 
-app.post('/api/episodes', (req, res) => {
+app.post('/api/episodes', async (req, res) => {
     if (!isAdmin(req)) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
     }
-    
-    refreshData();
     
     const { cover, title, author, description, link } = req.body;
     const newEpisode = {
@@ -182,27 +217,25 @@ app.post('/api/episodes', (req, res) => {
     
     data.episodes.push(newEpisode);
     
-    if (saveData()) {
+    if (await saveDataToKV(data)) {
         res.json({ id: newEpisode.id, success: true });
     } else {
         res.status(500).json({ error: 'Failed to save data' });
     }
 });
 
-app.delete('/api/episodes/:id', (req, res) => {
+app.delete('/api/episodes/:id', async (req, res) => {
     if (!isAdmin(req)) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
     }
-    
-    refreshData();
     
     const id = parseInt(req.params.id);
     const initialLength = data.episodes.length;
     data.episodes = data.episodes.filter(ep => ep.id !== id);
     
     if (data.episodes.length < initialLength) {
-        saveData();
+        await saveDataToKV(data);
         res.json({ deleted: 1, success: true });
     } else {
         res.status(404).json({ deleted: 0, success: false, error: 'Episode not found' });
@@ -211,8 +244,6 @@ app.delete('/api/episodes/:id', (req, res) => {
 
 // ========== BLOG API ENDPOINTS ==========
 app.get('/api/blog', (req, res) => {
-    refreshData();
-    
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
@@ -221,8 +252,6 @@ app.get('/api/blog', (req, res) => {
 });
 
 app.get('/api/blog/:id', (req, res) => {
-    refreshData();
-    
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     
     const id = parseInt(req.params.id);
@@ -234,13 +263,11 @@ app.get('/api/blog/:id', (req, res) => {
     res.json(post);
 });
 
-app.post('/api/blog', (req, res) => {
+app.post('/api/blog', async (req, res) => {
     if (!isAdmin(req)) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
     }
-    
-    refreshData();
     
     const { title, author, image_url, content, date } = req.body;
     const newPost = {
@@ -255,20 +282,18 @@ app.post('/api/blog', (req, res) => {
     
     data.blog_posts.push(newPost);
     
-    if (saveData()) {
+    if (await saveDataToKV(data)) {
         res.json({ id: newPost.id, success: true });
     } else {
         res.status(500).json({ error: 'Failed to save data' });
     }
 });
 
-app.delete('/api/blog/:id', (req, res) => {
+app.delete('/api/blog/:id', async (req, res) => {
     if (!isAdmin(req)) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
     }
-    
-    refreshData();
     
     const id = parseInt(req.params.id);
     
@@ -281,7 +306,7 @@ app.delete('/api/blog/:id', (req, res) => {
     data.blog_posts = data.blog_posts.filter(post => post.id !== id);
     
     if (data.blog_posts.length < initialLength) {
-        saveData();
+        await saveDataToKV(data);
         res.json({ deleted: 1, success: true, message: 'Post deleted successfully' });
     } else {
         res.status(404).json({ deleted: 0, success: false, error: 'Post not found' });
@@ -295,15 +320,11 @@ app.get('/api/stories', (req, res) => {
         return;
     }
     
-    refreshData();
-    
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.json(data.story_submissions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
 });
 
-app.post('/api/stories', (req, res) => {
-    refreshData();
-    
+app.post('/api/stories', async (req, res) => {
     const { name, email, category, title, content, date } = req.body;
     const newStory = {
         id: getNextId(data.story_submissions),
@@ -317,24 +338,22 @@ app.post('/api/stories', (req, res) => {
     };
     
     data.story_submissions.push(newStory);
-    saveData();
+    await saveDataToKV(data);
     res.json({ id: newStory.id, success: true });
 });
 
-app.delete('/api/stories/:id', (req, res) => {
+app.delete('/api/stories/:id', async (req, res) => {
     if (!isAdmin(req)) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
     }
-    
-    refreshData();
     
     const id = parseInt(req.params.id);
     const initialLength = data.story_submissions.length;
     data.story_submissions = data.story_submissions.filter(story => story.id !== id);
     
     if (data.story_submissions.length < initialLength) {
-        saveData();
+        await saveDataToKV(data);
         res.json({ deleted: 1, success: true });
     } else {
         res.json({ deleted: 0, success: false });
