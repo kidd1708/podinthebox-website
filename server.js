@@ -1,17 +1,16 @@
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
-const sqlite3 = require('sqlite3').verbose();
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Session configuration
+// Session configuration for Vercel (in-memory, but works per function instance)
 app.use(session({
     secret: process.env.SESSION_SECRET || 'podinthebox-super-secret-key-2026',
     resave: false,
@@ -22,54 +21,77 @@ app.use(session({
     }
 }));
 
-// Admin configuration - password loaded from .env (not hardcoded)
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+// Admin configuration
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
-// ========== DATABASE SETUP ==========
-const db = new sqlite3.Database('./podcast.db');
+// ========== DATA STORAGE (JSON file-based, works on Vercel) ==========
+const DATA_FILE = path.join(__dirname, 'data.json');
 
-// Create tables
-db.serialize(() => {
-    // Episodes table
-    db.run(`
-        CREATE TABLE IF NOT EXISTS episodes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            cover TEXT,
-            title TEXT NOT NULL,
-            author TEXT,
-            description TEXT,
-            link TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-    
-    // Blog posts table
-    db.run(`
-        CREATE TABLE IF NOT EXISTS blog_posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            author TEXT,
-            image_url TEXT,
-            content TEXT,
-            date TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-    
-    // Story submissions table
-    db.run(`
-        CREATE TABLE IF NOT EXISTS story_submissions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT NOT NULL,
-            category TEXT,
-            title TEXT NOT NULL,
-            content TEXT NOT NULL,
-            date TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-});
+// Initialize data structure
+let data = {
+    episodes: [],
+    blog_posts: [],
+    story_submissions: []
+};
+
+// Load data from file if exists
+function loadData() {
+    try {
+        if (fs.existsSync(DATA_FILE)) {
+            const rawData = fs.readFileSync(DATA_FILE, 'utf8');
+            data = JSON.parse(rawData);
+            console.log('Data loaded successfully');
+        } else {
+            // Add sample data
+            data = {
+                episodes: [
+                    {
+                        id: 1,
+                        cover: "https://picsum.photos/id/100/400/200",
+                        title: "Welcome to Pod in the Box",
+                        author: "Pod Host",
+                        description: "Our first episode! Welcome to the podcast.",
+                        link: "https://open.spotify.com/",
+                        created_at: new Date().toISOString()
+                    }
+                ],
+                blog_posts: [
+                    {
+                        id: 1,
+                        title: "Welcome to Our Blog",
+                        author: "Admin",
+                        image_url: "https://picsum.photos/id/101/400/200",
+                        content: "<p>Welcome to the Pod in the Box blog! Stay tuned for amazing content.</p>",
+                        date: new Date().toLocaleDateString(),
+                        created_at: new Date().toISOString()
+                    }
+                ],
+                story_submissions: []
+            };
+            saveData();
+        }
+    } catch (error) {
+        console.error('Error loading data:', error);
+    }
+}
+
+// Save data to file
+function saveData() {
+    try {
+        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+        console.log('Data saved successfully');
+    } catch (error) {
+        console.error('Error saving data:', error);
+    }
+}
+
+// Helper to get next ID
+function getNextId(items) {
+    return items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
+}
+
+// Load data on startup
+loadData();
 
 // ========== AUTHENTICATION ==========
 app.post('/api/admin/authenticate', (req, res) => {
@@ -96,13 +118,7 @@ app.post('/api/admin/logout', (req, res) => {
 // ========== EPISODE API ENDPOINTS ==========
 // Get all episodes (public)
 app.get('/api/episodes', (req, res) => {
-    db.all('SELECT * FROM episodes ORDER BY created_at DESC', (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json(rows);
-    });
+    res.json(data.episodes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
 });
 
 // Add episode (admin only)
@@ -113,17 +129,19 @@ app.post('/api/episodes', (req, res) => {
     }
     
     const { cover, title, author, description, link } = req.body;
-    db.run(
-        'INSERT INTO episodes (cover, title, author, description, link) VALUES (?, ?, ?, ?, ?)',
-        [cover, title, author, description, link],
-        function(err) {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
-            res.json({ id: this.lastID, success: true });
-        }
-    );
+    const newEpisode = {
+        id: getNextId(data.episodes),
+        cover: cover || "https://picsum.photos/id/100/400/200",
+        title,
+        author: author || "Anonymous Host",
+        description,
+        link,
+        created_at: new Date().toISOString()
+    };
+    
+    data.episodes.push(newEpisode);
+    saveData();
+    res.json({ id: newEpisode.id, success: true });
 });
 
 // Delete episode (admin only)
@@ -133,40 +151,33 @@ app.delete('/api/episodes/:id', (req, res) => {
         return;
     }
     
-    db.run('DELETE FROM episodes WHERE id = ?', [req.params.id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json({ deleted: this.changes, success: true });
-    });
+    const id = parseInt(req.params.id);
+    const initialLength = data.episodes.length;
+    data.episodes = data.episodes.filter(ep => ep.id !== id);
+    
+    if (data.episodes.length < initialLength) {
+        saveData();
+        res.json({ deleted: 1, success: true });
+    } else {
+        res.json({ deleted: 0, success: false });
+    }
 });
 
 // ========== BLOG API ENDPOINTS ==========
 // Get all blog posts (public)
 app.get('/api/blog', (req, res) => {
-    db.all('SELECT * FROM blog_posts ORDER BY created_at DESC', (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json(rows);
-    });
+    res.json(data.blog_posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
 });
 
 // Get single blog post (public)
 app.get('/api/blog/:id', (req, res) => {
-    db.get('SELECT * FROM blog_posts WHERE id = ?', [req.params.id], (err, row) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        if (!row) {
-            res.status(404).json({ error: 'Not found' });
-            return;
-        }
-        res.json(row);
-    });
+    const id = parseInt(req.params.id);
+    const post = data.blog_posts.find(p => p.id === id);
+    if (!post) {
+        res.status(404).json({ error: 'Not found' });
+        return;
+    }
+    res.json(post);
 });
 
 // Add blog post (admin only)
@@ -177,17 +188,19 @@ app.post('/api/blog', (req, res) => {
     }
     
     const { title, author, image_url, content, date } = req.body;
-    db.run(
-        'INSERT INTO blog_posts (title, author, image_url, content, date) VALUES (?, ?, ?, ?, ?)',
-        [title, author, image_url, content, date],
-        function(err) {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
-            res.json({ id: this.lastID, success: true });
-        }
-    );
+    const newPost = {
+        id: getNextId(data.blog_posts),
+        title,
+        author: author || "Anonymous Author",
+        image_url: image_url || null,
+        content,
+        date: date || new Date().toLocaleDateString(),
+        created_at: new Date().toISOString()
+    };
+    
+    data.blog_posts.push(newPost);
+    saveData();
+    res.json({ id: newPost.id, success: true });
 });
 
 // Delete blog post (admin only)
@@ -197,13 +210,16 @@ app.delete('/api/blog/:id', (req, res) => {
         return;
     }
     
-    db.run('DELETE FROM blog_posts WHERE id = ?', [req.params.id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json({ deleted: this.changes, success: true });
-    });
+    const id = parseInt(req.params.id);
+    const initialLength = data.blog_posts.length;
+    data.blog_posts = data.blog_posts.filter(post => post.id !== id);
+    
+    if (data.blog_posts.length < initialLength) {
+        saveData();
+        res.json({ deleted: 1, success: true });
+    } else {
+        res.json({ deleted: 0, success: false });
+    }
 });
 
 // ========== STORY SUBMISSION API ENDPOINTS ==========
@@ -214,29 +230,26 @@ app.get('/api/stories', (req, res) => {
         return;
     }
     
-    db.all('SELECT * FROM story_submissions ORDER BY created_at DESC', (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json(rows);
-    });
+    res.json(data.story_submissions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
 });
 
 // Submit a story (public)
 app.post('/api/stories', (req, res) => {
     const { name, email, category, title, content, date } = req.body;
-    db.run(
-        'INSERT INTO story_submissions (name, email, category, title, content, date) VALUES (?, ?, ?, ?, ?, ?)',
-        [name, email, category, title, content, date],
-        function(err) {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
-            res.json({ id: this.lastID, success: true });
-        }
-    );
+    const newStory = {
+        id: getNextId(data.story_submissions),
+        name,
+        email,
+        category: category || "Other",
+        title,
+        content,
+        date: date || new Date().toLocaleString(),
+        created_at: new Date().toISOString()
+    };
+    
+    data.story_submissions.push(newStory);
+    saveData();
+    res.json({ id: newStory.id, success: true });
 });
 
 // Delete story submission (admin only)
@@ -246,36 +259,31 @@ app.delete('/api/stories/:id', (req, res) => {
         return;
     }
     
-    db.run('DELETE FROM story_submissions WHERE id = ?', [req.params.id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json({ deleted: this.changes, success: true });
-    });
+    const id = parseInt(req.params.id);
+    const initialLength = data.story_submissions.length;
+    data.story_submissions = data.story_submissions.filter(story => story.id !== id);
+    
+    if (data.story_submissions.length < initialLength) {
+        saveData();
+        res.json({ deleted: 1, success: true });
+    } else {
+        res.json({ deleted: 0, success: false });
+    }
 });
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
 // Serve static files from public folder
-const publicPath = path.join(__dirname, 'public');
-app.use(express.static(publicPath));
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Main route - serve index.html from public folder
-app.get('/', (req, res) => {
+// All other routes serve index.html (for SPA routing)
+app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`\n=================================`);
-    console.log(`✅ Server is running!`);
-    console.log(`📍 Access at: http://localhost:${PORT}`);
-    console.log(`wELCOME KIDD!`)
-    console.log(`=================================\n`);
-});
-
+// ========== IMPORTANT: NO app.listen() for Vercel ==========
+// Export the app for Vercel serverless functions
 module.exports = app;
