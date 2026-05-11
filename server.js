@@ -10,7 +10,7 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Session configuration for Vercel (in-memory, but works per function instance)
+// Session configuration for Vercel
 app.use(session({
     secret: process.env.SESSION_SECRET || 'podinthebox-super-secret-key-2026',
     resave: false,
@@ -21,20 +21,23 @@ app.use(session({
     }
 }));
 
-// Admin configuration
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+// Admin configuration - READ FROM .env ONLY (NOT hardcoded!)
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
-// ========== DATA STORAGE (JSON file-based, works on Vercel) ==========
+// Check if password is set
+if (!ADMIN_PASSWORD) {
+    console.error('WARNING: ADMIN_PASSWORD not set in .env file!');
+}
+
+// ========== DATA STORAGE ==========
 const DATA_FILE = path.join(__dirname, 'data.json');
 
-// Initialize data structure
 let data = {
     episodes: [],
     blog_posts: [],
     story_submissions: []
 };
 
-// Load data from file if exists
 function loadData() {
     try {
         if (fs.existsSync(DATA_FILE)) {
@@ -42,7 +45,6 @@ function loadData() {
             data = JSON.parse(rawData);
             console.log('Data loaded successfully');
         } else {
-            // Add sample data
             data = {
                 episodes: [
                     {
@@ -75,7 +77,6 @@ function loadData() {
     }
 }
 
-// Save data to file
 function saveData() {
     try {
         fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
@@ -85,17 +86,20 @@ function saveData() {
     }
 }
 
-// Helper to get next ID
 function getNextId(items) {
     return items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
 }
 
-// Load data on startup
 loadData();
 
 // ========== AUTHENTICATION ==========
 app.post('/api/admin/authenticate', (req, res) => {
     const { password } = req.body;
+    
+    if (!ADMIN_PASSWORD) {
+        res.json({ success: false, message: 'Admin password not configured. Please check server settings.' });
+        return;
+    }
     
     if (password === ADMIN_PASSWORD) {
         req.session.isAdmin = true;
@@ -116,12 +120,10 @@ app.post('/api/admin/logout', (req, res) => {
 });
 
 // ========== EPISODE API ENDPOINTS ==========
-// Get all episodes (public)
 app.get('/api/episodes', (req, res) => {
     res.json(data.episodes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
 });
 
-// Add episode (admin only)
 app.post('/api/episodes', (req, res) => {
     if (!req.session.isAdmin) {
         res.status(401).json({ error: 'Unauthorized' });
@@ -144,7 +146,6 @@ app.post('/api/episodes', (req, res) => {
     res.json({ id: newEpisode.id, success: true });
 });
 
-// Delete episode (admin only)
 app.delete('/api/episodes/:id', (req, res) => {
     if (!req.session.isAdmin) {
         res.status(401).json({ error: 'Unauthorized' });
@@ -164,12 +165,10 @@ app.delete('/api/episodes/:id', (req, res) => {
 });
 
 // ========== BLOG API ENDPOINTS ==========
-// Get all blog posts (public)
 app.get('/api/blog', (req, res) => {
     res.json(data.blog_posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
 });
 
-// Get single blog post (public)
 app.get('/api/blog/:id', (req, res) => {
     const id = parseInt(req.params.id);
     const post = data.blog_posts.find(p => p.id === id);
@@ -180,7 +179,6 @@ app.get('/api/blog/:id', (req, res) => {
     res.json(post);
 });
 
-// Add blog post (admin only)
 app.post('/api/blog', (req, res) => {
     if (!req.session.isAdmin) {
         res.status(401).json({ error: 'Unauthorized' });
@@ -203,7 +201,6 @@ app.post('/api/blog', (req, res) => {
     res.json({ id: newPost.id, success: true });
 });
 
-// Delete blog post (admin only)
 app.delete('/api/blog/:id', (req, res) => {
     if (!req.session.isAdmin) {
         res.status(401).json({ error: 'Unauthorized' });
@@ -223,7 +220,6 @@ app.delete('/api/blog/:id', (req, res) => {
 });
 
 // ========== STORY SUBMISSION API ENDPOINTS ==========
-// Get all story submissions (admin only)
 app.get('/api/stories', (req, res) => {
     if (!req.session.isAdmin) {
         res.status(401).json({ error: 'Unauthorized' });
@@ -233,7 +229,6 @@ app.get('/api/stories', (req, res) => {
     res.json(data.story_submissions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
 });
 
-// Submit a story (public)
 app.post('/api/stories', (req, res) => {
     const { name, email, category, title, content, date } = req.body;
     const newStory = {
@@ -252,7 +247,6 @@ app.post('/api/stories', (req, res) => {
     res.json({ id: newStory.id, success: true });
 });
 
-// Delete story submission (admin only)
 app.delete('/api/stories/:id', (req, res) => {
     if (!req.session.isAdmin) {
         res.status(401).json({ error: 'Unauthorized' });
@@ -276,14 +270,13 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Serve static files from public folder
+// Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// All other routes serve index.html (for SPA routing)
+// All other routes serve index.html
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ========== IMPORTANT: NO app.listen() for Vercel ==========
-// Export the app for Vercel serverless functions
+// NO app.listen() - Export for Vercel
 module.exports = app;
