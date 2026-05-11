@@ -779,13 +779,16 @@
 </div>
 
 <script>
-  // --- DATA STORAGE ---
+  // ========== DATA STORAGE ==========
   let episodes = [];
   let blogPosts = [];
   let storySubmissions = [];
 
   let uploadedEpisodeImageData = null;
   let uploadedBlogImageData = null;
+  
+  // Admin token for authentication
+  let adminToken = null;
 
   // ========== API FUNCTIONS WITH CACHE BUSTING ==========
   
@@ -813,15 +816,12 @@
       const timestamp = new Date().getTime();
       const response = await fetch(`/api/blog?t=${timestamp}`, {
         cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
       });
       
       if (response.ok) {
         blogPosts = await response.json();
-        console.log(`Loaded ${blogPosts.length} blog posts at ${new Date().toLocaleTimeString()}`);
+        console.log(`Loaded ${blogPosts.length} blog posts`);
         renderPublicSite();
         if (document.getElementById('adminBlogList') && document.getElementById('adminDashboardArea').style.display === 'block') {
           renderAdminBlog();
@@ -835,15 +835,24 @@
   }
 
   async function loadStories() {
+    if (!adminToken) return;
+    
     try {
       const timestamp = new Date().getTime();
       const response = await fetch(`/api/stories?t=${timestamp}`, {
         cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+        headers: { 
+          'Cache-Control': 'no-cache', 
+          'Pragma': 'no-cache',
+          'X-Admin-Token': adminToken
+        }
       });
       if (response.ok) {
         storySubmissions = await response.json();
         if (document.getElementById('adminStoriesList')) renderAdminStories();
+      } else if (response.status === 401) {
+        console.log('Session expired, please login again');
+        logoutAndClose();
       } else {
         console.error('Failed to load stories');
       }
@@ -852,7 +861,6 @@
     }
   }
 
-  // Force refresh all data
   async function forceRefreshAllData() {
     console.log("Force refreshing all data...");
     blogPosts = [];
@@ -860,7 +868,7 @@
     storySubmissions = [];
     await loadEpisodes();
     await loadBlogPosts();
-    if (document.getElementById('adminStoriesList')) {
+    if (adminToken && document.getElementById('adminStoriesList')) {
       await loadStories();
     }
     console.log("Data refresh complete");
@@ -869,6 +877,30 @@
   async function loadAllData() {
     await loadEpisodes();
     await loadBlogPosts();
+  }
+
+  // Helper function for admin requests
+  async function adminFetch(url, options = {}) {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers
+    };
+    
+    if (adminToken) {
+      headers['X-Admin-Token'] = adminToken;
+    }
+    
+    const response = await fetch(url, {
+      ...options,
+      headers
+    });
+    
+    if (response.status === 401) {
+      showToast("Session expired. Please login again.", true);
+      logoutAndClose();
+    }
+    
+    return response;
   }
 
   // Image upload listeners
@@ -960,15 +992,14 @@
     const desc = document.getElementById('newEpDesc').value.trim();
     const link = document.getElementById('newEpLink').value.trim();
     
-    if (!title || !desc || !link) { alert("Fill title, description and link"); return; }
+    if (!title || !desc || !link) { showToast("Fill title, description and link", true); return; }
     if (uploadedEpisodeImageData) cover = uploadedEpisodeImageData;
     else if (!cover) cover = "https://picsum.photos/id/100/400/200";
     const finalAuthor = author || "Anonymous Host";
     
     try {
-      const response = await fetch('/api/episodes', {
+      const response = await adminFetch('/api/episodes', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cover, title, author: finalAuthor, description: desc, link })
       });
       
@@ -993,7 +1024,7 @@
   async function deleteEpisode(id) { 
     if(!confirm("Delete episode?")) return;
     try {
-      const response = await fetch(`/api/episodes/${id}`, { method: 'DELETE' });
+      const response = await adminFetch(`/api/episodes/${id}`, { method: 'DELETE' });
       if (response.ok) {
         await forceRefreshAllData();
         showToast("✅ Episode deleted!");
@@ -1010,16 +1041,15 @@
     let imageUrl = document.getElementById('blogImageUrl').value.trim();
     
     if (!title || !content || content === '<br>' || content === '') { 
-      alert("Title and content required"); 
+      showToast("Title and content required", true); 
       return; 
     }
     if (uploadedBlogImageData) imageUrl = uploadedBlogImageData;
     const finalAuthor = author || "Anonymous Author";
     
     try {
-      const response = await fetch('/api/blog', {
+      const response = await adminFetch('/api/blog', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           title, 
           author: finalAuthor, 
@@ -1046,21 +1076,16 @@
     }
   }
   
-  async function deleteBlogPost(id) { 
+  async function deleteBlogPost(id, btnElement) { 
     if(!confirm("Are you sure you want to delete this post? This action cannot be undone.")) return;
     
-    const deleteBtn = event.target;
+    const deleteBtn = btnElement;
     const originalText = deleteBtn.innerHTML;
     deleteBtn.disabled = true;
     deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
     
     try {
-      const timestamp = new Date().getTime();
-      const response = await fetch(`/api/blog/${id}`, { 
-        method: 'DELETE',
-        headers: { 'Cache-Control': 'no-cache' }
-      });
-      
+      const response = await adminFetch(`/api/blog/${id}`, { method: 'DELETE' });
       const result = await response.json();
       
       if (response.ok && result.success) {
@@ -1082,7 +1107,7 @@
   async function deleteStory(id) { 
     if(!confirm("Delete this submission?")) return;
     try {
-      const response = await fetch(`/api/stories/${id}`, { method: 'DELETE' });
+      const response = await adminFetch(`/api/stories/${id}`, { method: 'DELETE' });
       if (response.ok) {
         await loadStories();
         showToast("✅ Story deleted!");
@@ -1109,7 +1134,7 @@
       container.innerHTML = '<div class="list-item">No blog posts yet. Create your first post above!</div>';
       return;
     }
-    container.innerHTML = blogPosts.map(post => `<div class="list-item"><div><strong>${escapeHtml(post.title)}</strong><br><small>✍️ ${escapeHtml(post.author)}</small><div style="font-size:12px;">${post.date}</div></div><button class="btn-danger" onclick="deleteBlogPost(${post.id})">Delete</button></div>`).join('');
+    container.innerHTML = blogPosts.map(post => `<div class="list-item"><div><strong>${escapeHtml(post.title)}</strong><br><small>✍️ ${escapeHtml(post.author)}</small><div style="font-size:12px;">${post.date}</div></div><button class="btn-danger" onclick="deleteBlogPost(${post.id}, this)">Delete</button></div>`).join('');
   }
   
   function renderAdminStories() {
@@ -1160,18 +1185,18 @@
     const consent = document.getElementById('storyConsent').checked;
     
     if (!name || !email || !title || !content || !consent) {
-      alert('Please fill in all required fields and agree to the terms.');
+      showToast('Please fill in all required fields and agree to the terms.', true);
       return;
     }
     
     if (content.length < 50) {
-      alert('Please write at least 50 characters for your story.');
+      showToast('Please write at least 50 characters for your story.', true);
       return;
     }
     
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      alert('Please enter a valid email address.');
+      showToast('Please enter a valid email address.', true);
       return;
     }
     
@@ -1213,7 +1238,7 @@
       
     } catch (error) {
       console.error('Error submitting story:', error);
-      alert('There was an error submitting your story. Please try again.');
+      showToast('There was an error submitting your story. Please try again.', true);
     } finally {
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Your Story';
@@ -1257,6 +1282,8 @@
       const result = await response.json();
       
       if (result.success) {
+        adminToken = result.token;
+        
         document.getElementById('adminLoginArea').style.display = 'none';
         document.getElementById('adminDashboardArea').style.display = 'block';
         await forceRefreshAllData();
@@ -1281,6 +1308,7 @@
   async function logoutAndClose() {
     try {
       await fetch('/api/admin/logout', { method: 'POST' });
+      adminToken = null;
     } catch (error) {
       console.error('Logout error:', error);
     }
