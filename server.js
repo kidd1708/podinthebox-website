@@ -9,6 +9,15 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// FIX: Add aggressive cache control headers to ALL responses
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('ETag', crypto.randomBytes(8).toString('hex'));
+  next();
+});
+
 // ========== ADMIN CONFIG ==========
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
@@ -229,7 +238,7 @@ app.get('/api/admin/check', async (req, res) => {
 
 // ========== EPISODES ==========
 app.get('/api/episodes', (req, res) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.json([...data.episodes].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
@@ -282,14 +291,14 @@ app.delete('/api/episodes/:id', async (req, res) => {
 
 // ========== BLOG ==========
 app.get('/api/blog', (req, res) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.json([...data.blog_posts].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
 });
 
 app.get('/api/blog/:id', (req, res) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
     const post = data.blog_posts.find(p => p.id === id);
@@ -368,7 +377,7 @@ app.post('/api/stories', rateLimit(5, 10 * 60 * 1000), async (req, res) => {
 
 app.get('/api/stories', async (req, res) => {
     if (!await isAdmin(req)) return res.status(401).json({ error: 'Unauthorized' });
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     res.json([...data.story_submissions].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
 });
 
