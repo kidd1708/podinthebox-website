@@ -602,6 +602,15 @@
       margin-bottom: 16px;
       text-align: center;
     }
+
+    /* loading spinner */
+    .loading-state {
+      text-align: center;
+      padding: 40px;
+      color: #6b9080;
+      font-weight: 600;
+    }
+    .loading-state i { margin-right: 8px; }
   </style>
 </head>
 <body>
@@ -630,8 +639,8 @@
         <button class="btn-primary" onclick="window.open('https://open.spotify.com/user/31driympxqfybpzkbpfs4jmidpem','_blank')"><i class="fab fa-spotify"></i> Spotify</button>
         <button class="btn-primary btn-outline" onclick="window.open('https://open.noice.id/user/38d1b86c-2232-4482-921b-af809c95530c','_blank')"><i class="fas fa-headphones"></i> Noice</button>
         <button class="btn-primary btn-outline" onclick="window.open('https://www.tiktok.com/@podinthebox_official','_blank')"><i class="fa-brands fa-tiktok"></i> TikTok</button>
-        <button class="btn-primary btn-outline" onclick="window.open('https://www.instagram.com/podintheboxpodcast_official/','_blank')"><i class="fa-brands fa-instagram"></i> Instagran</button>
-        <button class="btn-primary btn-outline" onclick="window.open('https://www.threads.com/@podintheboxpodcast_official','_blank')"><i class="fa-brands fa-threads"></i> Thread</button>
+        <button class="btn-primary btn-outline" onclick="window.open('https://www.instagram.com/podintheboxpodcast_official/','_blank')"><i class="fa-brands fa-instagram"></i> Instagram</button>
+        <button class="btn-primary btn-outline" onclick="window.open('https://www.threads.com/@podintheboxpodcast_official','_blank')"><i class="fa-brands fa-threads"></i> Threads</button>
       </div>
     </div>
     
@@ -691,11 +700,21 @@
       </div>
     </div>
     
-    <div id="episodes-section"><div class="section-title"><i class="fas fa-headphones"></i> Our latest show</div><div id="episodesContainer" class="episode-grid"></div></div>
-    <div id="blog-section"><div class="section-title"><i class="fas fa-blog"></i> From the blog</div><div id="visitorBlogContainer" class="blog-grid"></div></div>
+    <div id="episodes-section">
+      <div class="section-title"><i class="fas fa-headphones"></i> Our latest show</div>
+      <div id="episodesContainer" class="episode-grid">
+        <div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Loading episodes...</div>
+      </div>
+    </div>
+    <div id="blog-section">
+      <div class="section-title"><i class="fas fa-blog"></i> From the blog</div>
+      <div id="visitorBlogContainer" class="blog-grid">
+        <div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Loading posts...</div>
+      </div>
+    </div>
   </div>
 </main>
-<footer><div class="container"><p>© 2026 POD IN THE BOX — made with love and machines <i class="fas fa-podcast"></i> | Pod in the Box</p><p style="margin-top: 12px; font-size: 0.85rem;"><i class="fas fa-envelope"></i> Contact: podintheboxpodcast_official@hotmail.com</p></footer>
+<footer><div class="container"><p>© 2026 POD IN THE BOX — made with love and machines <i class="fas fa-podcast"></i> | Pod in the Box</p><p style="margin-top: 12px; font-size: 0.85rem;"><i class="fas fa-envelope"></i> Contact: podintheboxpodcast_official@hotmail.com</p></div></footer>
 
 <!-- ADMIN DASHBOARD -->
 <div id="adminModal" class="admin-overlay">
@@ -715,7 +734,7 @@
       
       <div class="admin-tabs"><button class="tab-btn active" data-tab="episodesTab">🎙️ Episodes</button><button class="tab-btn" data-tab="blogTab">📝 Blog Manager</button><button class="tab-btn" data-tab="storiesTab">📖 Story Submissions</button></div>
       
-      <!-- EPISODES TAB with Author field -->
+      <!-- EPISODES TAB -->
       <div id="episodesTab" class="tab-pane active-pane">
         <div class="form-card">
           <h3>➕ Add New Episode</h3>
@@ -738,7 +757,7 @@
         <div id="adminEpisodesList" class="item-list"></div>
       </div>
       
-      <!-- BLOG TAB with Author field -->
+      <!-- BLOG TAB -->
       <div id="blogTab" class="tab-pane">
         <div class="form-card">
           <h3>✍️ Create Blog Post</h3>
@@ -781,49 +800,121 @@
 </div>
 
 <script>
-  // --- SAMPLE DATA with AUTHOR NAMES ---
-  let episodes = [];
-
-  let blogPosts = [];
-
-  let storySubmissions = [];
-
+  // ========== STATE ==========
+  // Admin token disimpan di memory saja (bukan localStorage), aman dan cukup untuk satu sesi
+  let adminToken = null;
   let uploadedEpisodeImageData = null;
   let uploadedBlogImageData = null;
 
-  function saveAllData() {
-    try {
-      localStorage.setItem('podinthebox_episodes', JSON.stringify(episodes));
-      localStorage.setItem('podinthebox_blog', JSON.stringify(blogPosts));
-      localStorage.setItem('podinthebox_stories', JSON.stringify(storySubmissions));
-      return true;
-    } catch(e) {
-      if (e.name === 'QuotaExceededError') {
-        alert("⚠️ Storage limit reached! Your uploaded image is too large. Please use smaller images (under 500KB) or use image URLs instead.");
-      } else {
-        alert("Error saving: " + e.message);
-      }
-      return false;
-    }
-  }
-  
-  function loadData() {
-    const storedEp = localStorage.getItem('podinthebox_episodes');
-    if (storedEp) episodes = JSON.parse(storedEp);
-    const storedBlog = localStorage.getItem('podinthebox_blog');
-    if (storedBlog) blogPosts = JSON.parse(storedBlog);
-    const storedStories = localStorage.getItem('podinthebox_stories');
-    if (storedStories) storySubmissions = JSON.parse(storedStories);
-    renderPublicSite();
+  // ========== API HELPERS ==========
+  async function apiFetch(path, options = {}) {
+    const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+    if (adminToken) headers['x-admin-token'] = adminToken;
+    const res = await fetch(path, { ...options, headers });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
   }
 
-  // Image upload listeners
+  // ========== PUBLIC SITE RENDERING ==========
+  async function loadPublicSite() {
+    await Promise.all([loadEpisodes(), loadBlogPosts()]);
+  }
+
+  async function loadEpisodes() {
+    const container = document.getElementById('episodesContainer');
+    try {
+      const episodes = await apiFetch('/api/episodes');
+      if (episodes.length === 0) {
+        container.innerHTML = '<div class="loading-state">No episodes yet. Check back soon!</div>';
+      } else {
+        container.innerHTML = episodes.map(ep => `
+          <div class="episode-card" onclick="window.open('${escapeHtml(ep.link)}', '_blank')">
+            <img class="episode-cover" src="${escapeHtml(ep.cover || '')}" onerror="this.src='https://picsum.photos/id/1/400/200'">
+            <div class="episode-info">
+              <div class="episode-title">${escapeHtml(ep.title)}</div>
+              <div class="episode-author"><i class="fas fa-user-circle"></i> ${escapeHtml(ep.author || 'Unknown Host')}</div>
+              <div class="episode-desc">${escapeHtml(ep.description)}</div>
+              <div class="listen-link"><i class="fas fa-play-circle"></i> Listen now →</div>
+            </div>
+          </div>
+        `).join('');
+      }
+    } catch (err) {
+      container.innerHTML = '<div class="loading-state" style="color:#c27e6e;"><i class="fas fa-exclamation-circle"></i> Failed to load episodes.</div>';
+    }
+  }
+
+  async function loadBlogPosts() {
+    const container = document.getElementById('visitorBlogContainer');
+    try {
+      const posts = await apiFetch('/api/blog');
+      if (posts.length === 0) {
+        container.innerHTML = '<div class="loading-state">No blog posts yet. Check back soon!</div>';
+      } else {
+        container.innerHTML = posts.map(post => `
+          <div class="blog-card" onclick="viewFullPost(${post.id})">
+            ${post.image_url ? `<img class="blog-card-image" src="${escapeHtml(post.image_url)}" onerror="this.style.display='none'">` : ''}
+            <h3>${escapeHtml(post.title)}</h3>
+            <div class="blog-author"><i class="fas fa-pen-fancy"></i> ${escapeHtml(post.author || 'Unknown Author')}</div>
+            <div class="blog-date"><i class="far fa-calendar-alt"></i> ${escapeHtml(post.date)}</div>
+          </div>
+        `).join('');
+      }
+    } catch (err) {
+      container.innerHTML = '<div class="loading-state" style="color:#c27e6e;"><i class="fas fa-exclamation-circle"></i> Failed to load blog posts.</div>';
+    }
+  }
+
+  async function viewFullPost(id) {
+    try {
+      const post = await apiFetch(`/api/blog/${id}`);
+      const win = window.open();
+      win.document.write(`<html><head><title>${escapeHtml(post.title)}</title><style>body{font-family:'Inter',sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6;} img{max-width:100%;border-radius:16px;}</style></head><body><h1>${escapeHtml(post.title)}</h1><p style="color:#6b9080; margin-bottom:20px;"> ${escapeHtml(post.author || 'Unknown Author')} | ${escapeHtml(post.date)}</p>${post.content}</body></html>`);
+      win.document.close();
+    } catch (err) {
+      alert('Failed to load post. Please try again.');
+    }
+  }
+
+  // ========== STORY SUBMISSION ==========
+  document.getElementById('storyForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const name = document.getElementById('storyName').value.trim();
+    const email = document.getElementById('storyEmail').value.trim();
+    const category = document.getElementById('storyCategory').value;
+    const title = document.getElementById('storyTitle').value.trim();
+    const content = document.getElementById('storyContent').value.trim();
+    const consent = document.getElementById('storyConsent').checked;
+
+    if (!name || !email || !title || !content || !consent) { alert('Please fill in all required fields and agree to the terms.'); return; }
+    if (content.length < 50) { alert('Please write at least 50 characters for your story.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Please enter a valid email address.'); return; }
+
+    const submitBtn = document.getElementById('submitStoryBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+
+    try {
+      await apiFetch('/api/stories', {
+        method: 'POST',
+        body: JSON.stringify({ name, email, category, title, content, date: new Date().toLocaleString() })
+      });
+      showToast('Thank you! Your story has been submitted.');
+      document.getElementById('storyForm').reset();
+    } catch (err) {
+      showToast('Error submitting story. Please try again.', true);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Your Story';
+    }
+  });
+
+  // ========== IMAGE UPLOAD HELPERS ==========
   document.getElementById('episodeImageUpload').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (file && file.type.startsWith('image/')) {
-      if (file.size > 500 * 1024) {
-        alert("⚠️ Image is larger than 500KB. For better results, use a smaller image or paste an image URL instead.");
-      }
+      if (file.size > 500 * 1024) alert("⚠️ Image is larger than 500KB. For better results, use a smaller image or paste an image URL instead.");
       const reader = new FileReader();
       reader.onload = function(ev) {
         uploadedEpisodeImageData = ev.target.result;
@@ -833,15 +924,13 @@
       reader.readAsDataURL(file);
     }
   });
-  
+
   function clearEpisodeImagePreview() { uploadedEpisodeImageData = null; document.getElementById('episodeImagePreviewArea').innerHTML = ''; document.getElementById('episodeImageUpload').value = ''; document.getElementById('newEpCover').value = ''; }
-  
+
   document.getElementById('blogImageUpload').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (file && file.type.startsWith('image/')) {
-      if (file.size > 500 * 1024) {
-        alert("⚠️ Image is larger than 500KB. Consider using a smaller image or URL instead.");
-      }
+      if (file.size > 500 * 1024) alert("⚠️ Image is larger than 500KB. Consider using a smaller image or URL instead.");
       const reader = new FileReader();
       reader.onload = function(ev) {
         uploadedBlogImageData = ev.target.result;
@@ -851,133 +940,166 @@
       reader.readAsDataURL(file);
     }
   });
-  
+
   function clearBlogImagePreview() { uploadedBlogImageData = null; document.getElementById('blogImagePreviewArea').innerHTML = ''; document.getElementById('blogImageUpload').value = ''; document.getElementById('blogImageUrl').value = ''; }
 
-  function renderPublicSite() {
-    const epContainer = document.getElementById('episodesContainer');
-    if (epContainer) {
-      if (episodes.length === 0) {
-        epContainer.innerHTML = '<div style="text-align:center; padding:40px;">No episodes yet. Add some in the admin panel!</div>';
-      } else {
-        epContainer.innerHTML = episodes.map(ep => `
-          <div class="episode-card" onclick="window.open('${escapeHtml(ep.link)}', '_blank')">
-            <img class="episode-cover" src="${escapeHtml(ep.cover)}" onerror="this.src='https://picsum.photos/id/1/400/200'">
-            <div class="episode-info">
-              <div class="episode-title">${escapeHtml(ep.title)}</div>
-              <div class="episode-author"><i class="fas fa-user-circle"></i> ${escapeHtml(ep.author) || 'Unknown Host'}</div>
-              <div class="episode-desc">${escapeHtml(ep.description)}</div>
-              <div class="listen-link"><i class="fas fa-play-circle"></i> Listen now →</div>
-            </div>
-          </div>
-        `).join('');
-      }
-    }
-    const blogContainer = document.getElementById('visitorBlogContainer');
-    if (blogContainer) {
-      if (blogPosts.length === 0) {
-        blogContainer.innerHTML = '<div style="text-align:center; padding:40px;">No blog posts yet. Add some in the admin panel!</div>';
-      } else {
-        blogContainer.innerHTML = blogPosts.slice().reverse().map(post => `
-          <div class="blog-card" onclick="viewFullPost(${post.id})">
-            ${post.imageUrl ? `<img class="blog-card-image" src="${escapeHtml(post.imageUrl)}" onerror="this.style.display='none'">` : ''}
-            <h3>${escapeHtml(post.title)}</h3>
-            <div class="blog-author"><i class="fas fa-pen-fancy"></i> ${escapeHtml(post.author) || 'Unknown Author'}</div>
-            <div class="blog-date"><i class="far fa-calendar-alt"></i> ${escapeHtml(post.date)}</div>
-          </div>
-        `).join('');
-      }
-    }
-  }
-
-  function viewFullPost(id) {
-    const post = blogPosts.find(p => p.id === id);
-    if (post) {
-      const win = window.open();
-      win.document.write(`<html><head><title>${post.title}</title><style>body{font-family:'Inter',sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6;} img{max-width:100%;border-radius:16px;}</style></head><body><h1>${escapeHtml(post.title)}</h1><p style="color:#6b9080; margin-bottom:20px;"><i class="fas fa-user"></i> ${escapeHtml(post.author) || 'Unknown Author'} | ${post.date}</p>${post.content}</body></html>`);
-      win.document.close();
-    }
-  }
-
-  function addFullEpisode() {
+  // ========== ADMIN: EPISODES ==========
+  async function addFullEpisode() {
     let cover = document.getElementById('newEpCover').value.trim();
     const title = document.getElementById('newEpTitle').value.trim();
     const author = document.getElementById('newEpAuthor').value.trim();
-    const desc = document.getElementById('newEpDesc').value.trim();
+    const description = document.getElementById('newEpDesc').value.trim();
     const link = document.getElementById('newEpLink').value.trim();
-    if (!title || !desc || !link) { alert("Fill title, description and link"); return; }
+
+    if (!title || !description || !link) { alert("Fill title, description and link"); return; }
     if (uploadedEpisodeImageData) cover = uploadedEpisodeImageData;
     else if (!cover) cover = "https://picsum.photos/id/100/400/200";
-    const finalAuthor = author || "Anonymous Host";
-    episodes.push({ id: Date.now(), cover, title, author: finalAuthor, description: desc, link });
-    if (saveAllData()) {
-      renderPublicSite(); renderAdminEpisodes();
-      document.getElementById('newEpCover').value = ''; document.getElementById('newEpTitle').value = ''; document.getElementById('newEpAuthor').value = '';
-      document.getElementById('newEpDesc').value = ''; document.getElementById('newEpLink').value = '';
-      clearEpisodeImagePreview(); uploadedEpisodeImageData = null;
-      alert("✅ Episode added!");
+
+    try {
+      await apiFetch('/api/episodes', {
+        method: 'POST',
+        body: JSON.stringify({ cover, title, author: author || 'Anonymous Host', description, link })
+      });
+      showToast('✅ Episode published!');
+      document.getElementById('newEpCover').value = '';
+      document.getElementById('newEpTitle').value = '';
+      document.getElementById('newEpAuthor').value = '';
+      document.getElementById('newEpDesc').value = '';
+      document.getElementById('newEpLink').value = '';
+      clearEpisodeImagePreview();
+      await renderAdminEpisodes();
+      await loadEpisodes();
+    } catch (err) {
+      showToast('Failed to publish episode: ' + err.message, true);
     }
   }
 
-  function deleteEpisode(id) { if(confirm("Delete?")) { episodes = episodes.filter(ep => ep.id !== id); saveAllData(); renderPublicSite(); renderAdminEpisodes(); } }
+  async function deleteEpisode(id) {
+    if (!confirm("Delete this episode?")) return;
+    try {
+      await apiFetch(`/api/episodes/${id}`, { method: 'DELETE' });
+      showToast('Episode deleted.');
+      await renderAdminEpisodes();
+      await loadEpisodes();
+    } catch (err) {
+      showToast('Failed to delete: ' + err.message, true);
+    }
+  }
 
-  function publishBlogPost() {
+  async function renderAdminEpisodes() {
+    const container = document.getElementById('adminEpisodesList');
+    if (!container) return;
+    container.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    try {
+      const episodes = await apiFetch('/api/episodes');
+      if (episodes.length === 0) { container.innerHTML = '<div class="list-item">No episodes yet.</div>'; return; }
+      container.innerHTML = episodes.map(ep => `
+        <div class="list-item">
+          <div><strong>${escapeHtml(ep.title)}</strong><br><small>👤 ${escapeHtml(ep.author)}</small><br><small>${escapeHtml(ep.description.substring(0,60))}</small></div>
+          <button class="btn-danger" onclick="deleteEpisode(${ep.id})">Delete</button>
+        </div>
+      `).join('');
+    } catch (err) {
+      container.innerHTML = '<div class="list-item" style="color:#c27e6e;">Failed to load episodes.</div>';
+    }
+  }
+
+  // ========== ADMIN: BLOG ==========
+  async function publishBlogPost() {
     const title = document.getElementById('newBlogTitle').value.trim();
     const author = document.getElementById('newBlogAuthor').value.trim();
     const content = document.getElementById('richEditor').innerHTML;
-    let imageUrl = document.getElementById('blogImageUrl').value.trim();
+    let image_url = document.getElementById('blogImageUrl').value.trim();
+
     if (!title || !content || content === '<br>' || content === '') { alert("Title and content required"); return; }
-    if (uploadedBlogImageData) imageUrl = uploadedBlogImageData;
-    const finalAuthor = author || "Anonymous Author";
-    blogPosts.unshift({ id: Date.now(), title, author: finalAuthor, imageUrl: imageUrl || null, content, date: new Date().toLocaleDateString() });
-    if (saveAllData()) {
-      renderPublicSite(); renderAdminBlog();
-      document.getElementById('newBlogTitle').value = ''; document.getElementById('newBlogAuthor').value = '';
-      document.getElementById('richEditor').innerHTML = ''; document.getElementById('blogImageUrl').value = '';
-      clearBlogImagePreview(); uploadedBlogImageData = null;
-      alert("✅ Blog posted!");
+    if (uploadedBlogImageData) image_url = uploadedBlogImageData;
+
+    try {
+      await apiFetch('/api/blog', {
+        method: 'POST',
+        body: JSON.stringify({ title, author: author || 'Anonymous Author', image_url: image_url || null, content, date: new Date().toLocaleDateString() })
+      });
+      showToast('✅ Blog post published!');
+      document.getElementById('newBlogTitle').value = '';
+      document.getElementById('newBlogAuthor').value = '';
+      document.getElementById('richEditor').innerHTML = '';
+      document.getElementById('blogImageUrl').value = '';
+      clearBlogImagePreview();
+      await renderAdminBlog();
+      await loadBlogPosts();
+    } catch (err) {
+      showToast('Failed to publish post: ' + err.message, true);
     }
   }
-  
-  function deleteBlogPost(id) { if(confirm("Delete post?")) { blogPosts = blogPosts.filter(p => p.id !== id); saveAllData(); renderPublicSite(); renderAdminBlog(); } }
-  
-  function deleteStory(id) { if(confirm("Delete this submission?")) { storySubmissions = storySubmissions.filter(s => s.id !== id); saveAllData(); renderAdminStories(); } }
 
-  function renderAdminEpisodes() {
-    const container = document.getElementById('adminEpisodesList');
-    if (!container) return;
-    container.innerHTML = episodes.map(ep => `<div class="list-item"><div><strong>${escapeHtml(ep.title)}</strong><br><small>👤 ${escapeHtml(ep.author)}</small><br><small>${escapeHtml(ep.description.substring(0,60))}</small></div><button class="btn-danger" onclick="deleteEpisode(${ep.id})">Delete</button></div>`).join('');
+  async function deleteBlogPost(id) {
+    if (!confirm("Delete this post?")) return;
+    try {
+      await apiFetch(`/api/blog/${id}`, { method: 'DELETE' });
+      showToast('Post deleted.');
+      await renderAdminBlog();
+      await loadBlogPosts();
+    } catch (err) {
+      showToast('Failed to delete: ' + err.message, true);
+    }
   }
-  
-  function renderAdminBlog() {
+
+  async function renderAdminBlog() {
     const container = document.getElementById('adminBlogList');
     if (!container) return;
-    container.innerHTML = blogPosts.map(post => `<div class="list-item"><div><strong>${escapeHtml(post.title)}</strong><br><small>✍️ ${escapeHtml(post.author)}</small><div style="font-size:12px;">${post.date}</div></div><button class="btn-danger" onclick="deleteBlogPost(${post.id})">Delete</button></div>`).join('');
-  }
-  
-  function renderAdminStories() {
-    const container = document.getElementById('adminStoriesList');
-    if (!container) return;
-    if (storySubmissions.length === 0) {
-      container.innerHTML = '<div class="list-item">No story submissions yet.</div>';
-      return;
-    }
-    container.innerHTML = storySubmissions.slice().reverse().map(story => `
-      <div class="list-item">
-        <div>
-          <strong>📖 ${escapeHtml(story.title)}</strong><br>
-          <small><i class="fas fa-user"></i> ${escapeHtml(story.name)}</small><br>
-          <small><i class="fas fa-envelope"></i> ${escapeHtml(story.email)}</small><br>
-          <small><i class="fas fa-tag"></i> ${escapeHtml(story.category)}</small><br>
-          <small><i class="fas fa-calendar"></i> ${story.date}</small><br>
-          <details><summary>📄 Read Story</summary><div style="margin-top: 10px; padding: 10px; background: #fffef7; border-radius: 16px;">${escapeHtml(story.content.substring(0, 500))}${story.content.length > 500 ? '...' : ''}</div></details>
+    container.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    try {
+      const posts = await apiFetch('/api/blog');
+      if (posts.length === 0) { container.innerHTML = '<div class="list-item">No blog posts yet.</div>'; return; }
+      container.innerHTML = posts.map(post => `
+        <div class="list-item">
+          <div><strong>${escapeHtml(post.title)}</strong><br><small>✍️ ${escapeHtml(post.author)}</small><div style="font-size:12px;">${escapeHtml(post.date)}</div></div>
+          <button class="btn-danger" onclick="deleteBlogPost(${post.id})">Delete</button>
         </div>
-        <button class="btn-danger" onclick="deleteStory(${story.id})">Delete</button>
-      </div>
-    `).join('');
+      `).join('');
+    } catch (err) {
+      container.innerHTML = '<div class="list-item" style="color:#c27e6e;">Failed to load posts.</div>';
+    }
   }
 
-  // Rich text helpers
+  // ========== ADMIN: STORIES ==========
+  async function deleteStory(id) {
+    if (!confirm("Delete this submission?")) return;
+    try {
+      await apiFetch(`/api/stories/${id}`, { method: 'DELETE' });
+      showToast('Story deleted.');
+      await renderAdminStories();
+    } catch (err) {
+      showToast('Failed to delete: ' + err.message, true);
+    }
+  }
+
+  async function renderAdminStories() {
+    const container = document.getElementById('adminStoriesList');
+    if (!container) return;
+    container.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    try {
+      const stories = await apiFetch('/api/stories');
+      if (stories.length === 0) { container.innerHTML = '<div class="list-item">No story submissions yet.</div>'; return; }
+      container.innerHTML = stories.map(story => `
+        <div class="list-item">
+          <div>
+            <strong>📖 ${escapeHtml(story.title)}</strong><br>
+            <small><i class="fas fa-user"></i> ${escapeHtml(story.name)}</small><br>
+            <small><i class="fas fa-envelope"></i> ${escapeHtml(story.email)}</small><br>
+            <small><i class="fas fa-tag"></i> ${escapeHtml(story.category)}</small><br>
+            <small><i class="fas fa-calendar"></i> ${escapeHtml(story.date)}</small><br>
+            <details><summary>📄 Read Story</summary><div style="margin-top:10px;padding:10px;background:#fffef7;border-radius:16px;">${escapeHtml(story.content.substring(0,500))}${story.content.length > 500 ? '...' : ''}</div></details>
+          </div>
+          <button class="btn-danger" onclick="deleteStory(${story.id})">Delete</button>
+        </div>
+      `).join('');
+    } catch (err) {
+      container.innerHTML = '<div class="list-item" style="color:#c27e6e;">Failed to load stories.</div>';
+    }
+  }
+
+  // ========== RICH TEXT HELPERS ==========
   function formatDoc(cmd, val=null) { document.getElementById('richEditor').focus(); document.execCommand(cmd, false, val); }
   function createLink() { let url = prompt("URL (https://)"); if(url) formatDoc('createLink', url); }
   function insertImageFromUrl() { let img = prompt("Image URL"); if(img) formatDoc('insertImage', img); }
@@ -991,86 +1113,91 @@
     }
   }
 
-  // Story submission handler
-  document.getElementById('storyForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const name = document.getElementById('storyName').value.trim();
-    const email = document.getElementById('storyEmail').value.trim();
-    const category = document.getElementById('storyCategory').value;
-    const title = document.getElementById('storyTitle').value.trim();
-    const content = document.getElementById('storyContent').value.trim();
-    const consent = document.getElementById('storyConsent').checked;
-    
-    if (!name || !email || !title || !content || !consent) {
-      alert('Please fill in all required fields and agree to the terms.');
+  // ========== AUTHENTICATION ==========
+  async function authenticateAdmin() {
+    const pwd = document.getElementById('adminPasswordInput').value;
+    const existingError = document.querySelector('.login-error-msg');
+    if (existingError) existingError.remove();
+
+    if (!pwd) {
+      appendLoginError('Please enter the admin password.');
       return;
     }
-    
-    if (content.length < 50) {
-      alert('Please write at least 50 characters for your story.');
-      return;
-    }
-    
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      alert('Please enter a valid email address.');
-      return;
-    }
-    
-    const submitBtn = document.getElementById('submitStoryBtn');
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-    
+
     try {
-      // Send email via mailto: as fallback, but also store locally
-      const subject = encodeURIComponent(`Story Submission: ${title} from ${name}`);
-      const body = encodeURIComponent(
-        `Name: ${name}\n` +
-        `Email: ${email}\n` +
-        `Category: ${category}\n` +
-        `Story Title: ${title}\n\n` +
-        `Story:\n${content}`
-      );
-      
-      // Store in localStorage
-      const newStory = {
-        id: Date.now(),
-        name: name,
-        email: email,
-        category: category,
-        title: title,
-        content: content,
-        date: new Date().toLocaleString()
-      };
-      storySubmissions.push(newStory);
-      saveAllData();
-      
-      // Open email client
-      window.location.href = `mailto:podintheboxpodcast_official@hotmail.com?subject=${subject}&body=${body}`;
-      
-      // Show success message
-      const toast = document.createElement('div');
-      toast.className = 'toast-notification';
-      toast.innerHTML = '<i class="fas fa-check-circle"></i> Thank you! Your story has been submitted. Your email client will open to complete the submission.';
-      document.body.appendChild(toast);
-      
-      // Reset form
-      document.getElementById('storyForm').reset();
-      
-      setTimeout(() => {
-        toast.remove();
-      }, 5000);
-      
-    } catch (error) {
-      console.error('Error submitting story:', error);
-      alert('There was an error submitting your story. Please try again or email us directly at podinthebox_official@hotmail.com');
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Your Story';
+      const result = await apiFetch('/api/admin/authenticate', {
+        method: 'POST',
+        body: JSON.stringify({ password: pwd })
+      });
+      if (result.success) {
+        adminToken = result.token;
+        document.getElementById('adminLoginArea').style.display = 'none';
+        document.getElementById('adminDashboardArea').style.display = 'block';
+        document.getElementById('adminPasswordInput').value = '';
+        renderAdminEpisodes();
+        renderAdminBlog();
+        activateTabs();
+        document.getElementById('richEditor').innerHTML = '';
+      }
+    } catch (err) {
+      appendLoginError("My apologize, you're not the admin.");
     }
-  });
-  
+  }
+
+  function appendLoginError(msg) {
+    const div = document.createElement('div');
+    div.className = 'login-error-msg';
+    div.style.cssText = 'color:#c27e6e;margin-top:10px;font-size:0.9rem;';
+    div.textContent = msg;
+    document.getElementById('adminLoginArea').appendChild(div);
+  }
+
+  async function logoutAndClose() {
+    try {
+      await apiFetch('/api/admin/logout', { method: 'POST' });
+    } catch (e) {}
+    adminToken = null;
+    closeAdminDashboard();
+  }
+
+  // ========== MODAL & TABS ==========
+  function openAdminDashboard() {
+    document.getElementById('adminModal').style.display = 'flex';
+    document.getElementById('adminLoginArea').style.display = 'block';
+    document.getElementById('adminDashboardArea').style.display = 'none';
+  }
+  function closeAdminDashboard() { document.getElementById('adminModal').style.display = 'none'; }
+
+  function activateTabs() {
+    const tabs = document.querySelectorAll('.tab-btn');
+    const panes = document.querySelectorAll('.tab-pane');
+    tabs.forEach(btn => {
+      btn.replaceWith(btn.cloneNode(true)); // remove old listeners
+    });
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const tabId = this.getAttribute('data-tab');
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        panes.forEach(p => p.classList.remove('active-pane'));
+        document.getElementById(tabId).classList.add('active-pane');
+        if (tabId === 'storiesTab') renderAdminStories();
+        if (tabId === 'episodesTab') renderAdminEpisodes();
+        if (tabId === 'blogTab') renderAdminBlog();
+      });
+    });
+  }
+
+  // ========== UTILS ==========
+  function scrollToEpisodes() { document.getElementById('episodes-section').scrollIntoView({ behavior: 'smooth' }); }
+  function scrollToBlog() { document.getElementById('blog-section').scrollIntoView({ behavior: 'smooth' }); }
+  function scrollToStory() { document.getElementById('story-section').scrollIntoView({ behavior: 'smooth' }); }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+  }
+
   function showToast(message, isError = false) {
     const toast = document.createElement('div');
     toast.className = 'toast-notification';
@@ -1080,94 +1207,12 @@
     setTimeout(() => toast.remove(), 4000);
   }
 
-  // ========== HIDDEN AUTHENTICATION - Password now validated on backend ==========
-  async function authenticateAdmin() {
-    const pwd = document.getElementById('adminPasswordInput').value;
-    const loginError = document.createElement('div');
-    loginError.style.color = '#c27e6e';
-    loginError.style.marginTop = '10px';
-    loginError.style.fontSize = '0.9rem';
-    
-    // Remove any existing error message
-    const existingError = document.querySelector('.login-error-msg');
-    if (existingError) existingError.remove();
-    loginError.className = 'login-error-msg';
-    
-    if (!pwd) {
-      loginError.textContent = 'Please enter the admin password';
-      document.getElementById('adminLoginArea').appendChild(loginError);
-      return;
-    }
-    
-    try {
-      const response = await fetch('/api/admin/authenticate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ password: pwd })
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        document.getElementById('adminLoginArea').style.display = 'none';
-        document.getElementById('adminDashboardArea').style.display = 'block';
-        renderAdminEpisodes();
-        renderAdminBlog();
-        renderAdminStories();
-        activateTabs();
-        document.getElementById('richEditor').innerHTML = '';
-        const errorDiv = document.querySelector('.login-error-msg');
-        if (errorDiv) errorDiv.remove();
-      } else {
-        loginError.textContent = result.message || "My apologize, you're not the admin.";
-        document.getElementById('adminLoginArea').appendChild(loginError);
-      }
-    } catch (error) {
-      console.error('Authentication error:', error);
-      loginError.textContent = 'Network error. Please make sure the server is running.';
-      document.getElementById('adminLoginArea').appendChild(loginError);
-    }
-  }
-  
-  async function logoutAndClose() {
-    try {
-      await fetch('/api/admin/logout', { method: 'POST' });
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-    closeAdminDashboard();
-  }
-  // ========== END OF HIDDEN AUTHENTICATION ==========
+  // Enter key on password input
+  document.getElementById('adminPasswordInput').addEventListener('keydown', e => { if (e.key === 'Enter') authenticateAdmin(); });
+  document.getElementById('adminModal').addEventListener('click', e => { if (e.target === document.getElementById('adminModal')) closeAdminDashboard(); });
 
-  function openAdminDashboard() { document.getElementById('adminModal').style.display = 'flex'; document.getElementById('adminLoginArea').style.display = 'block'; document.getElementById('adminDashboardArea').style.display = 'none'; }
-  function closeAdminDashboard() { document.getElementById('adminModal').style.display = 'none'; }
-  
-  function activateTabs() { 
-    const tabs = document.querySelectorAll('.tab-btn'); 
-    const panes = document.querySelectorAll('.tab-pane'); 
-    tabs.forEach(btn => { 
-      btn.removeEventListener('click', activateTabsHandler);
-      btn.addEventListener('click', activateTabsHandler);
-    }); 
-    function activateTabsHandler() {
-      const tabId = this.getAttribute('data-tab'); 
-      tabs.forEach(b => b.classList.remove('active')); 
-      this.classList.add('active'); 
-      panes.forEach(p => p.classList.remove('active-pane')); 
-      document.getElementById(tabId).classList.add('active-pane');
-      if (tabId === 'storiesTab') renderAdminStories();
-    }
-  }
-  
-  function scrollToEpisodes() { document.getElementById('episodes-section').scrollIntoView({ behavior: 'smooth' }); }
-  function scrollToBlog() { document.getElementById('blog-section').scrollIntoView({ behavior: 'smooth' }); }
-  function scrollToStory() { document.getElementById('story-section').scrollIntoView({ behavior: 'smooth' }); }
-  function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
-
-  document.getElementById('adminModal').addEventListener('click', e => { if(e.target === document.getElementById('adminModal')) closeAdminDashboard(); });
-  loadData();
+  // ========== INIT ==========
+  loadPublicSite();
 </script>
 </body>
 </html>
